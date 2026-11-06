@@ -271,6 +271,7 @@ def verify_payment_endpoint(req: VerifyPaymentRequest, request: Request):
 def regenerate_key_endpoint(req: RegenerateKeyRequest, request: Request):
     result = razorpay_billing.regenerate_api_key(
         org_id=req.org_id,
-        payment_id=req.payment_id
+        payment_id=req.payment_id,
+        email=req.email
     )
     return RegenerateKeyResponse(**result)

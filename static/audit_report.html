@@ -36,25 +36,25 @@
         <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: http://127.0.0.1:8000/static/showcase.html | Tested Locales: de-DE, ur-PK, ar-SA, ja-JP</div>
       </div>
-      <div class="badge">Engine v1.2.0 • Root-Cause Diagnosis Active</div>
+      <div class="badge">Engine v1.2.0 • Live In-Browser Reflow Verified</div>
     </div>
 
     <div class="grid">
       <div class="card blue">
         <div style="color: #94a3b8; font-size: 12px;">UI Elements Inspected</div>
-        <div class="val">30</div>
+        <div class="val">36</div>
       </div>
       <div class="card amber">
         <div style="color: #94a3b8; font-size: 12px;">Layout Overflows Caught</div>
-        <div class="val">87</div>
+        <div class="val">63</div>
       </div>
       <div class="card green">
-        <div style="color: #94a3b8; font-size: 12px;">Verified Safe Repairs</div>
-        <div class="val">67</div>
+        <div style="color: #94a3b8; font-size: 12px;">Verified In-Browser Repairs</div>
+        <div class="val">45</div>
       </div>
       <div class="card orange">
         <div style="color: #94a3b8; font-size: 12px;">Needs Intervention</div>
-        <div class="val">20</div>
+        <div class="val">18</div>
       </div>
     </div>
 
@@ -65,172 +65,242 @@
           <th>Component</th>
           <th>Original Text</th>
           <th>Locale</th>
-          <th>Root Cause Diagnosis</th>
+          <th>Diagnosis</th>
           <th>Container vs Overflow</th>
-          <th>Action / Developer Recommendation</th>
-          <th>Status</th>
+          <th>Live Browser Swap / Action</th>
+          <th>Browser Verification</th>
         </tr>
       </thead>
       <tbody>
 
         <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+155.4px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ⚡</code> (126.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (549.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+91.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ⚡ Polyglot Engine — Real-World Layout Proof</code> (642.9px)</small></td>
-          <td><span class="status-fit">✅ Fits (33.1px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+87.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ⚡ Polyglot Engine — Real-World Layout Proof</code> (635.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (40.4px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+45.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] ⚡ Polyglot Engine — Real-World Layout Proof</code> (600.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (76.0px headroom)</span></td>
+          <td class="status-overflow">497px limit<br><small style="color: #94a3b8;">+84.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Zero-latency</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (121.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+77.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout</code> (667.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (8.5px headroom)</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">497px limit<br><small style="color: #94a3b8;">+77.8px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Zero-latency⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (121.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
-          <td><strong>ur-PK</strong></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+75.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout</code> (662.3px)</small></td>
-          <td><span class="status-fit">✅ Fits (13.7px headroom)</span></td>
+          <td class="status-overflow">497px limit<br><small style="color: #94a3b8;">+70.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Zero-latency⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (121.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+67.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout</code> (655.9px)</small></td>
-          <td><span class="status-fit">✅ Fits (20.1px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">676px limit<br><small style="color: #94a3b8;">+14.2px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout</code> (608.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (67.4px headroom)</span></td>
+          <td class="status-overflow">497px limit<br><small style="color: #94a3b8;">+30.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-10.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+48.2px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] 💳</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-8.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+37.6px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] 💳⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-8.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+31.7px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] 💳⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-3.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ja-JP</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+27.7px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] 💳</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-3.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+56.5px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Swagger</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-33.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+46.2px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Swagger⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-29.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+41.6px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Swagger⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-25.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ja-JP</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+36.5px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Swagger</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-23.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">420px limit<br><small style="color: #94a3b8;">+96.8px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario</code> (137.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (283.0px headroom)</span></td>
+          <td class="status-overflow">236px limit<br><small style="color: #94a3b8;">+33.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Rendered Live UI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (35.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">420px limit<br><small style="color: #94a3b8;">+61.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario 1: German Expansion in E-Commerce</code> (408.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (11.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">420px limit<br><small style="color: #94a3b8;">+55.2px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario 1: German Expansion in E-Commerce</code> (400.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (19.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
-          <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">420px limit<br><small style="color: #94a3b8;">+25.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario 1: German Expansion in E-Commerce</code> (374.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (45.6px headroom)</span></td>
+          <td class="status-overflow">236px limit<br><small style="color: #94a3b8;">+14.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Rendered⁩ ⁦Live⁩ ⁦UI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (26.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">236px limit<br><small style="color: #94a3b8;">+11.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Rendered⁩ ⁦Live⁩ ⁦UI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (38.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+67.4px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Kauf</code> (84.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (78.8px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+53.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] ⁧خریدیں</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+44.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Kauf</code> (79.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (84.0px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+45.3px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁧خریدیں⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+40.6px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Kauf</code> (71.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (91.2px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+35.6px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁧خریدیں ⁦⁦-⁩⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+25.3px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Kauf</code> (66.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (96.8px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+58.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] ⁧خریدیں</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+107.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] ⁧إتمام</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+77.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁧إتمام⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+69.5px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁧إتمام⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
+          <td><strong>ja-JP</strong></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+134.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] ⁧إتمام</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
@@ -238,9 +308,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+49.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Kaufen</code> (99.9px)</small></td>
-          <td><span class="status-fit">✅ Fits (15.1px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+49.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Kaufen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
@@ -248,9 +318,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+31.3px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Kaufen</code> (94.3px)</small></td>
-          <td><span class="status-fit">✅ Fits (20.7px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+38.6px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Kaufen⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
@@ -258,9 +328,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+27.2px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Kaufen</code> (87.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (27.8px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+34.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Kaufen⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
@@ -268,389 +338,289 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+15.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Kaufen</code> (80.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (34.6px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+21.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Kaufen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">472px limit<br><small style="color: #94a3b8;">+87.2px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario</code> (137.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (335.0px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+44.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] 購入を完了 -</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">472px limit<br><small style="color: #94a3b8;">+52.9px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario 2: Arabic / Urdu BiDi Alignment & Currency</code> (451.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (20.6px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+50.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] 購入を完了⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">472px limit<br><small style="color: #94a3b8;">+46.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario 2: Arabic / Urdu BiDi Alignment & Currency</code> (444.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (27.4px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+25.9px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] 購入を完了 ⁦-⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">472px limit<br><small style="color: #94a3b8;">+7.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario 2: Arabic / Urdu BiDi Alignment & Currency</code> (410.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (61.6px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">480px limit<br><small style="color: #94a3b8;">+90.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario 3: Rigid Fixed-Width Flex Tab (Developer</code> (465.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (14.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">480px limit<br><small style="color: #94a3b8;">+59.6px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario 3: Rigid Fixed-Width Flex Tab (Developer</code> (435.1px)</small></td>
-          <td><span class="status-fit">✅ Fits (44.9px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">480px limit<br><small style="color: #94a3b8;">+44.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario 3: Rigid Fixed-Width Flex Tab (Developer</code> (422.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (57.4px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">480px limit<br><small style="color: #94a3b8;">+7.7px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario 3: Rigid Fixed-Width Flex Tab (Developer</code> (393.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (86.8px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+46.6px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Einst...</code> (85.6px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+44.7px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Einst...</code> (83.7px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+38.5px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Einst...</code> (77.5px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+32.3px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Einst...</code> (71.3px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+84.5px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Einstellungen</code> (123.5px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+85.2px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Einstellungen</code> (124.2px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+78.2px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Einstellungen</code> (117.2px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+69.4px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Einstellungen</code> (108.4px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+504.4px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ⚡</code> (126.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (200.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+440.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ⚡</code> (122.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (204.6px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+436.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ⚡</code> (103.5px)</small></td>
-          <td><span class="status-fit">✅ Fits (223.5px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h1&gt;</span></td>
-          <td>⚡ Polyglot Engine — Real-World Layout Proof Showcase</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+394.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] ⚡</code> (106.3px)</small></td>
-          <td><span class="status-fit">✅ Fits (220.7px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+44.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] 購入を完了</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+426.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Demonstrating</code> (152.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (174.2px headroom)</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+238.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Zero-latency</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (0.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+424.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Demonstrating</code> (153.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (174.0px headroom)</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+231.8px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Zero-latency⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (0.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+416.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Demonstrating</code> (147.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (180.0px headroom)</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+224.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Zero-latency⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (0.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;p&gt;</span></td>
-          <td>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">327px limit<br><small style="color: #94a3b8;">+363.2px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Demonstrating</code> (134.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (192.4px headroom)</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+184.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Zero-latency</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (0.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+48.2px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] 💳</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-8.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+37.6px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] 💳⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-8.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+31.7px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] 💳⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-3.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ja-JP</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+27.7px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] 💳</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-3.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+56.5px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Swagger</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-33.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+46.2px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Swagger⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-29.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+41.6px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Swagger⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-25.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ja-JP</strong></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+36.5px overflow</small></td>
+          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Swagger</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-23.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">162px limit<br><small style="color: #94a3b8;">+354.8px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario</code> (137.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (25.0px headroom)</span></td>
+          <td class="status-overflow">225px limit<br><small style="color: #94a3b8;">+44.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Rendered Live UI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (24.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">162px limit<br><small style="color: #94a3b8;">+319.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario</code> (127.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (35.0px headroom)</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">225px limit<br><small style="color: #94a3b8;">+25.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Rendered⁩ ⁦Live⁩ ⁦UI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (15.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">162px limit<br><small style="color: #94a3b8;">+313.2px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario</code> (118.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (43.4px headroom)</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">225px limit<br><small style="color: #94a3b8;">+22.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Rendered⁩ ⁦Live⁩ ⁦UI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (27.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 1: German Expansion in E-Commerce Checkout</td>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>Rendered Live UI Components</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">162px limit<br><small style="color: #94a3b8;">+283.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario</code> (111.1px)</small></td>
-          <td><span class="status-fit">✅ Fits (50.9px headroom)</span></td>
+          <td class="status-overflow">225px limit<br><small style="color: #94a3b8;">+5.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Rendered Live UI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (29.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Without Polyglot)</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+23.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ❌ Raw Translation (Without</code> (210.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (32.2px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Without Polyglot)</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+13.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ❌ Raw Translation (Without</code> (203.9px)</small></td>
-          <td><span class="status-fit">✅ Fits (39.1px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Without Polyglot)</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+2.4px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ❌ Raw Translation (Without</code> (192.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (50.2px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+53.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] ⁧خریدیں</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+67.4px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Kauf</code> (84.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (78.8px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+44.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Kauf</code> (79.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (84.0px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+45.3px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁧خریدیں⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+40.6px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Kauf</code> (71.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (91.2px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+35.6px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁧خریدیں ⁦⁦-⁩⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Kauf abschließen - 49,99 $</td>
+          <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">163px limit<br><small style="color: #94a3b8;">+25.3px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Kauf</code> (66.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (96.8px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+58.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] ⁧خریدیں</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot Engine (Repaired & Verified)</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+37.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ✅ Polyglot Engine (Repaired &</code> (226.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (16.4px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+107.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] ⁧إتمام</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot Engine (Repaired & Verified)</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+22.2px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ✅ Polyglot Engine (Repaired &</code> (213.7px)</small></td>
-          <td><span class="status-fit">✅ Fits (29.3px headroom)</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+77.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁧إتمام⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot Engine (Repaired & Verified)</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+69.5px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁧إتمام⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
+          <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+14.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ✅ Polyglot Engine (Repaired &</code> (207.7px)</small></td>
-          <td><span class="status-fit">✅ Fits (35.3px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+134.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] ⁧إتمام</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
@@ -658,9 +628,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+49.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Kaufen</code> (99.9px)</small></td>
-          <td><span class="status-fit">✅ Fits (15.1px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+49.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] Kaufen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
@@ -668,9 +638,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+31.3px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Kaufen</code> (94.3px)</small></td>
-          <td><span class="status-fit">✅ Fits (20.7px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+38.6px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] ⁦Kaufen⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
@@ -678,9 +648,9 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+27.2px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Kaufen</code> (87.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (27.8px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+34.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] ⁦Kaufen⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
@@ -688,259 +658,49 @@
           <td>Kaufen - 49,99 $</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">115px limit<br><small style="color: #94a3b8;">+15.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Kaufen</code> (80.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (34.6px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+21.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] Kaufen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>de-DE</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">167px limit<br><small style="color: #94a3b8;">+392.2px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario</code> (137.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (30.0px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+44.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[de-DE] 購入を完了 -</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ur-PK</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">167px limit<br><small style="color: #94a3b8;">+357.9px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario</code> (127.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (40.0px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+50.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ur-PK⁩] 購入を完了⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ar-SA</strong></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">167px limit<br><small style="color: #94a3b8;">+351.4px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario</code> (118.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (48.4px headroom)</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+25.9px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧[⁦ar-SA⁩] 購入を完了 ⁦-⁩⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Needs CSS Intervention</span></td>
         </tr>
 
         <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</td>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>購入を完了 - $49.99</td>
           <td><strong>ja-JP</strong></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">167px limit<br><small style="color: #94a3b8;">+312.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario</code> (111.1px)</small></td>
-          <td><span class="status-fit">✅ Fits (55.9px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Punctuation Inverted)</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+49.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ❌ Raw Translation (Punctuation</code> (235.6px)</small></td>
-          <td><span class="status-fit">✅ Fits (7.4px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Punctuation Inverted)</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+39.1px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ❌ Raw Translation (Punctuation</code> (226.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (16.2px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Punctuation Inverted)</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+27.3px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ❌ Raw Translation (Punctuation</code> (216.3px)</small></td>
-          <td><span class="status-fit">✅ Fits (26.7px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>❌ Raw Translation (Punctuation Inverted)</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+13.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] ❌ Raw Translation (Punctuation</code> (207.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (36.0px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot BiDi Shield (Isolated Direction)</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+50.6px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ✅ Polyglot BiDi Shield (Isolated</code> (232.0px)</small></td>
-          <td><span class="status-fit">✅ Fits (11.0px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot BiDi Shield (Isolated Direction)</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+34.8px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] ✅ Polyglot BiDi Shield (Isolated</code> (218.4px)</small></td>
-          <td><span class="status-fit">✅ Fits (24.6px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot BiDi Shield (Isolated Direction)</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+27.3px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] ✅ Polyglot BiDi Shield (Isolated</code> (212.2px)</small></td>
-          <td><span class="status-fit">✅ Fits (30.8px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot BiDi Shield (Isolated Direction)</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+13.8px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] ✅ Polyglot BiDi Shield (Isolated</code> (202.7px)</small></td>
-          <td><span class="status-fit">✅ Fits (40.3px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">107px limit<br><small style="color: #94a3b8;">+463.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Scenario</code> (137.0px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">107px limit<br><small style="color: #94a3b8;">+432.6px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Scenario</code> (127.0px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
-          <td class="status-overflow">107px limit<br><small style="color: #94a3b8;">+417.1px overflow</small></td>
-          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Scenario</code> (118.6px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h3&gt;</span></td>
-          <td>Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">107px limit<br><small style="color: #94a3b8;">+380.7px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Scenario</code> (111.1px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+46.6px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Einst...</code> (85.6px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+44.7px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Einst...</code> (83.7px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+38.5px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Einst...</code> (77.5px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einst...</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+32.3px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Einst...</code> (71.3px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;h4&gt;</span></td>
-          <td>✅ Polyglot Root-Cause Diagnosis</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
-          <td class="status-overflow">243px limit<br><small style="color: #94a3b8;">+2.7px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] ✅ Polyglot Root-Cause</code> (183.8px)</small></td>
-          <td><span class="status-fit">✅ Fits (59.2px headroom)</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>de-DE</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+84.5px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[de-DE] Einstellungen</code> (123.5px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ur-PK</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+85.2px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ur-PK] Einstellungen</code> (124.2px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ar-SA</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+78.2px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ar-SA] Einstellungen</code> (117.2px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
-        </tr>
-
-        <tr>
-          <td><span class="tag">&lt;button&gt;</span></td>
-          <td>Einstellungen</td>
-          <td><strong>ja-JP</strong></td>
-          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
-          <td class="status-overflow">39px limit<br><small style="color: #94a3b8;">+69.4px overflow</small></td>
-          <td><strong>Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'.</strong><br><small style="color: #94a3b8;">Swap: <code>[ja-JP] Einstellungen</code> (108.4px)</small></td>
-          <td><span class="status-intervene">⚠️ Needs Intervention</span></td>
+          <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+44.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>[ja-JP] 購入を完了</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (-16.0px headroom)</span></td>
         </tr>
 
       </tbody>

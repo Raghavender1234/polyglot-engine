@@ -53,10 +53,20 @@ def test_razorpay_order_and_key_issuance_security():
     assert idempotent_data["key_redacted"] is True
     assert idempotent_data["key_prefix"].startswith("pk_live_")
 
-    # 4. Secure Key Regeneration / Rotation
+    # 4. Secure Key Regeneration / Rotation (requires valid org_id, payment_id and verified email)
+    # Mismatched email should be rejected
+    bad_regen = client.post("/v1/billing/regenerate-key", json={
+        "org_id": issued_data["org_id"],
+        "payment_id": verify_payload["razorpay_payment_id"],
+        "email": "attacker@evil.com"
+    })
+    assert bad_regen.status_code == 403
+
+    # Valid verified email succeeds
     regen_res = client.post("/v1/billing/regenerate-key", json={
         "org_id": issued_data["org_id"],
-        "payment_id": verify_payload["razorpay_payment_id"]
+        "payment_id": verify_payload["razorpay_payment_id"],
+        "email": verify_payload["email"]
     })
     assert regen_res.status_code == 200
     regen_data = regen_res.json()

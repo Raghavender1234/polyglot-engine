@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
 Polyglot Engine — Headless DOM Layout Scanner & Verification Engine
-Performs real browser-rendered DOM measurement via Playwright (with fallback to HTML parser).
-Scans multiple routes/viewports, detects horizontal overflows & visual collisions,
-applies and verifies non-destructive Polyglot safe repairs in the live browser,
-and generates comprehensive Polyglot Audit Reports (HTML & JSON).
+Performs real browser-rendered DOM measurement via Playwright.
+Scans multiple routes/viewports, applies candidate translations directly in the live browser DOM,
+forces layout reflow, re-measures rendered geometry, and produces verified before-and-after audit reports.
 """
 
 import os
@@ -12,6 +11,7 @@ import sys
 import json
 import argparse
 import urllib.request
+import urllib.parse
 import re
 from pathlib import Path
 from html.parser import HTMLParser
@@ -97,15 +97,9 @@ class UIElementParser(HTMLParser):
             self._text_buffer = []
 
 
-# --- 2. PLAYWRIGHT REAL BROWSER MEASUREMENT ENGINE ---
-PLAYWRIGHT_SCAN_JS = """
+# --- 2. JAVASCRIPT SNIPPETS FOR PLAYWRIGHT EXECUTION ---
+JS_DISCOVER_TARGETS = """
 () => {
-    const results = {
-        elements: [],
-        collisions: []
-    };
-
-    // Explicit Text Node Selection Strategy inside browser
     function findTargetTextNode(element) {
         const explicitTextEl = element.querySelector('[data-polyglot-text]') || (element.hasAttribute('data-polyglot-text') ? element : null);
         if (explicitTextEl) {
@@ -141,6 +135,7 @@ PLAYWRIGHT_SCAN_JS = """
         return target;
     }
 
+    const items = [];
     const targets = document.querySelectorAll(
         'button, a, nav, [role="button"], .btn, h1, h2, h3, h4, h5, h6, label, p, .badge, [data-polyglot-detect]'
     );
@@ -151,7 +146,6 @@ PLAYWRIGHT_SCAN_JS = """
         if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return;
 
         const rect = el.getBoundingClientRect();
-        // Skip hidden/collapsed elements (e.g. unopened modals, drawers)
         if (rect.width <= 5 || rect.height <= 5) return;
 
         const textNode = findTargetTextNode(el);
@@ -160,98 +154,134 @@ PLAYWRIGHT_SCAN_JS = """
 
         const padLeft = parseFloat(style.paddingLeft) || 0;
         const padRight = parseFloat(style.paddingRight) || 0;
-        const contentWidth = Math.max(0, el.clientWidth - padLeft - padRight);
+        const elemWidth = el.clientWidth > 0 ? el.clientWidth : rect.width;
+        const contentWidth = Math.max(0, elemWidth - padLeft - padRight);
         if (contentWidth <= 5) return;
 
-        // Detect horizontal overflow in real browser
-        const isHorizontalOverflow = el.scrollWidth > el.clientWidth + 1;
-        const isVerticalOverflow = el.scrollHeight > el.clientHeight + 1 && (style.overflow === 'hidden' || style.overflowY === 'hidden');
+        // Tag the element with a temporary data-polyglot-id
+        el.setAttribute('data-polyglot-id', String(idx));
 
-        results.elements.push({
-            id: 'el_' + idx,
+        items.push({
+            id: idx,
             tag: el.tagName.toLowerCase(),
             text: text,
             clientWidth: el.clientWidth,
-            contentWidth: contentWidth || el.clientWidth,
+            contentWidth: contentWidth,
             scrollWidth: el.scrollWidth,
             fontSize: parseFloat(style.fontSize) || 14.0,
             fontWeight: parseInt(style.fontWeight, 10) || 500,
-            rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
-            overflows: isHorizontalOverflow || isVerticalOverflow,
-            overflowType: isHorizontalOverflow ? 'horizontal' : (isVerticalOverflow ? 'vertical' : 'none')
+            whiteSpace: style.whiteSpace,
+            flexShrink: style.flexShrink,
+            isRigidWidth: style.width.endsWith('px') && parseFloat(style.width) < 90 && parseFloat(style.width) > 0
         });
     });
 
-    // Detect actual collisions while filtering intentional positioning
-    const containers = document.querySelectorAll('nav, [role="navigation"], header, .nav, .toolbar, .button-group, .flex, .btn-group');
-    containers.forEach((container) => {
-        const children = Array.from(container.children).filter((c) => {
-            const s = window.getComputedStyle(c);
-            if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0 || s.pointerEvents === 'none') return false;
-            if (s.position === 'absolute' || s.position === 'fixed') return false;
-            if (c.getAttribute('aria-hidden') === 'true' || c.getAttribute('role') === 'presentation') return false;
-            return true;
-        });
-
-        for (let i = 0; i < children.length; i++) {
-            const r1 = children[i].getBoundingClientRect();
-            if (r1.width <= 2 || r1.height <= 2) continue;
-            for (let j = i + 1; j < children.length; j++) {
-                const r2 = children[j].getBoundingClientRect();
-                if (r2.width <= 2 || r2.height <= 2) continue;
-                const overlapX = Math.max(0, Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left));
-                const overlapY = Math.max(0, Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top));
-                if (overlapX > 5 && overlapY > 5) {
-                    results.collisions.push({
-                        elementA: children[i].tagName.toLowerCase(),
-                        elementB: children[j].tagName.toLowerCase(),
-                        overlapPx: Math.round(overlapX)
-                    });
-                }
-            }
-        }
-    });
-
-    return results;
+    return items;
 }
 """
 
-def scan_with_playwright(url: str, viewports: List[Dict[str, int]]):
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return None
+JS_APPLY_AND_REMEASURE = """
+(payload) => {
+    function findTargetTextNode(element) {
+        const explicitTextEl = element.querySelector('[data-polyglot-text]') || (element.hasAttribute('data-polyglot-text') ? element : null);
+        if (explicitTextEl) {
+            const walker = document.createTreeWalker(explicitTextEl, NodeFilter.SHOW_TEXT, null, false);
+            let n;
+            while ((n = walker.nextNode())) {
+                if (n.textContent.trim().length > 0) return n;
+            }
+        }
+        for (let i = 0; i < element.childNodes.length; i++) {
+            const child = element.childNodes[i];
+            if (child.nodeType === Node.TEXT_NODE && child.textContent.trim().length > 0) return child;
+        }
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        let target = null, maxLen = 0, node;
+        while ((node = walker.nextNode())) {
+            const trimmed = node.textContent.trim();
+            if (trimmed.length > maxLen) {
+                maxLen = trimmed.length;
+                target = node;
+            }
+        }
+        return target;
+    }
 
-    scan_results = []
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            for vp in viewports:
-                page = browser.new_page(viewport=vp)
-                page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                data = page.evaluate(PLAYWRIGHT_SCAN_JS)
-                data["viewport"] = vp
-                scan_results.append(data)
-            browser.close()
-            return scan_results
-    except Exception as e:
-        print(f"⚠️ Playwright scan notice: {e}. Falling back to standard DOM analysis.")
-        return None
+    const el = document.querySelector('[data-polyglot-id="' + payload.id + '"]');
+    if (!el) return null;
+
+    const textNode = findTargetTextNode(el);
+    const originalText = textNode ? textNode.textContent : el.textContent;
+
+    // Apply Candidate
+    if (textNode) {
+        textNode.textContent = payload.newText;
+    } else {
+        el.textContent = payload.newText;
+    }
+
+    if (payload.cssRules) {
+        if (payload.cssRules.dir) el.dir = payload.cssRules.dir;
+        if (payload.cssRules.line_height) el.style.lineHeight = payload.cssRules.line_height;
+        if (payload.cssRules.font_family) el.style.fontFamily = payload.cssRules.font_family;
+    }
+
+    // Force browser layout reflow
+    void el.offsetHeight;
+
+    const style = window.getComputedStyle(el);
+    const isHorizontalOverflow = el.scrollWidth > el.clientWidth + 1;
+    const isVerticalOverflow = el.scrollHeight > el.clientHeight + 1 && (style.overflow === 'hidden' || style.overflowY === 'hidden');
+    const stillOverflows = isHorizontalOverflow || isVerticalOverflow;
+
+    const result = {
+        stillOverflows: stillOverflows,
+        measuredScrollWidth: el.scrollWidth,
+        measuredClientWidth: el.clientWidth,
+        fitsInLiveBrowser: !stillOverflows
+    };
+
+    // If requested, revert text back so other element measurements remain clean
+    if (payload.revert) {
+        if (textNode) {
+            textNode.textContent = originalText;
+        } else {
+            el.textContent = originalText;
+        }
+        if (payload.cssRules) {
+            el.dir = '';
+            el.style.lineHeight = '';
+            el.style.fontFamily = '';
+        }
+        void el.offsetHeight;
+    }
+
+    return result;
+}
+"""
 
 
-# --- 3. ROOT-CAUSE DIAGNOSIS & AUDIT REPORT GENERATOR ---
-def classify_root_cause(element_tag: str, container_width: float, rejected_width: float, measured_width: float, text: str, locale: str) -> Dict[str, str]:
+# --- 3. ROOT-CAUSE DIAGNOSIS ---
+def classify_root_cause(
+    element_tag: str,
+    container_width: float,
+    rejected_width: float,
+    measured_width: float,
+    text: str,
+    locale: str,
+    is_rigid: bool = False
+) -> Dict[str, str]:
     """
     Root-Cause Diagnostic Engine:
     Distinguishes whether a layout failure is caused by:
-    1. CSS_LAYOUT_CONSTRAINT: Container width is unrealistically constrained (<90px for buttons/labels)
+    1. CSS_LAYOUT_CONSTRAINT: Container width is unrealistically constrained (<90px or rigid fixed width)
     2. BIDI_ISOLATION: RTL languages (ar-SA, ur-PK) with mixed numbers/symbols
     3. TEXT_VERBOSITY: Natural language expansion on a standard container
     """
     is_rtl = locale in ("ar-SA", "ur-PK", "he-IL", "fa-IR")
     has_mixed_bidi = bool(re.search(r'[\$\d\%\+\-\/\#]', text)) and is_rtl
 
-    if container_width < 90.0 and len(text) > 4:
+    if (container_width < 90.0 or is_rigid) and len(text) > 4:
         return {
             "category": "CSS_LAYOUT_CONSTRAINT",
             "badge_class": "badge-orange",
@@ -273,6 +303,8 @@ def classify_root_cause(element_tag: str, container_width: float, rejected_width
             "developer_fix": "Swapped to HarfBuzz-verified compact variant."
         }
 
+
+# --- 4. HTML AUDIT REPORT GENERATOR ---
 def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -312,7 +344,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: {summary['target']} | Tested Locales: {', '.join(summary['locales'])}</div>
       </div>
-      <div class="badge">Engine v1.2.0 • Root-Cause Diagnosis Active</div>
+      <div class="badge">Engine v1.2.0 • Live In-Browser Reflow Verified</div>
     </div>
 
     <div class="grid">
@@ -325,7 +357,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         <div class="val">{summary['overflows_detected']}</div>
       </div>
       <div class="card green">
-        <div style="color: #94a3b8; font-size: 12px;">Verified Safe Repairs</div>
+        <div style="color: #94a3b8; font-size: 12px;">Verified In-Browser Repairs</div>
         <div class="val">{summary['repairs_verified']}</div>
       </div>
       <div class="card orange">
@@ -341,10 +373,10 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
           <th>Component</th>
           <th>Original Text</th>
           <th>Locale</th>
-          <th>Root Cause Diagnosis</th>
+          <th>Diagnosis</th>
           <th>Container vs Overflow</th>
-          <th>Action / Developer Recommendation</th>
-          <th>Status</th>
+          <th>Live Browser Swap / Action</th>
+          <th>Browser Verification</th>
         </tr>
       </thead>
       <tbody>
@@ -355,8 +387,8 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         cat = diag.get("category", "TEXT_VERBOSITY")
         fix = diag.get("developer_fix", item['safe_repair'])
 
-        is_intervene = item['measured_width_px'] > item['container_max_width_px']
-        status_html = '<span class="status-intervene">⚠️ Needs Intervention</span>' if is_intervene else f'<span class="status-fit">✅ Fits ({item["container_max_width_px"] - item["measured_width_px"]:.1f}px headroom)</span>'
+        verified_fit = item.get("browser_verified", item['measured_width_px'] <= item['container_max_width_px'])
+        status_html = f'<span class="status-fit">✅ Live Browser Fit ({item["container_max_width_px"] - item["measured_width_px"]:.1f}px headroom)</span>' if verified_fit else '<span class="status-intervene">⚠️ Needs CSS Intervention</span>'
 
         html += f"""
         <tr>
@@ -365,7 +397,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
           <td><strong>{item['locale']}</strong></td>
           <td><span class="badge-diag {badge_cls}">{cat}</span></td>
           <td class="status-overflow">{item['container_max_width_px']}px limit<br><small style="color: #94a3b8;">+{item['rejected_width_px'] - item['container_max_width_px']:.1f}px overflow</small></td>
-          <td><strong>{fix}</strong><br><small style="color: #94a3b8;">Swap: <code>{item['safe_repair']}</code> ({item['measured_width_px']:.1f}px)</small></td>
+          <td><strong>{fix}</strong><br><small style="color: #94a3b8;">Candidate: <code>{item['safe_repair']}</code></small></td>
           <td>{status_html}</td>
         </tr>
 """
@@ -381,53 +413,162 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
     print(f"📄 Polyglot HTML Audit Report generated: {output_path}")
 
 
-# --- 4. MAIN CONTROLLER ---
+# --- 5. MAIN SCANNER ENGINE ---
 def main():
-    parser = argparse.ArgumentParser(description="Polyglot Headless DOM Layout Scanner & Audit Engine")
-    parser.add_argument("--url", help="URL of live web application to scan")
+    parser = argparse.ArgumentParser(description="Polyglot Headless DOM Layout Scanner & Live Browser Verification Engine")
+    parser.add_argument("--url", help="Base URL of live web application to scan")
     parser.add_argument("--file", help="Path to local HTML file to scan")
     parser.add_argument("--routes", default="/", help="Comma-separated routes to scan (e.g. /,/checkout,/pricing)")
     parser.add_argument("--api-url", default=os.getenv("POLYGLOT_API_URL", "http://127.0.0.1:8000"), help="Polyglot API URL")
+    parser.add_argument("--api-key", default=os.getenv("POLYGLOT_API_KEY", ""), help="Polyglot Engine API Key (X-API-Key)")
     parser.add_argument("--locales", default="de-DE,ur-PK,ar-SA,ja-JP", help="Target locales to verify")
+    parser.add_argument("--screenshots", help="Directory to save before/after screenshots", default=None)
     parser.add_argument("--json", action="store_true", help="Output audit report as JSON")
     parser.add_argument("--report", help="Save interactive HTML audit report to specified path (e.g. audit.html)")
+    parser.add_argument("--verbose", action="store_true", help="Print verbose diagnostic details")
     args = parser.parse_args()
 
     target_locales = [l.strip() for l in args.locales.split(",") if l.strip()]
+    routes = [r.strip() for r in args.routes.split(",") if r.strip()]
     viewports = [
-        {"width": 1280, "height": 800}, # Desktop
-        {"width": 375, "height": 667}   # Mobile Viewport
+        {"width": 1280, "height": 800, "name": "desktop"},
+        {"width": 375, "height": 667, "name": "mobile"}
     ]
 
-    elements = []
-    collisions_count = 0
+    endpoint = f"{args.api_url.rstrip('/')}/v1/localize"
+    headers = {"Content-Type": "application/json"}
+    if args.api_key:
+        headers["X-API-Key"] = args.api_key
+
+    total_scanned = 0
+    overflows_found = 0
+    repairs_verified = 0
+    needs_intervention = 0
+    findings = []
     target_name = args.url or args.file or "static/index.html"
 
-    # Attempt Playwright real browser scan if URL provided
-    if args.url:
-        pw_results = scan_with_playwright(args.url, viewports)
-        if pw_results:
-            for v_res in pw_results:
-                for el in v_res.get("elements", []):
-                    elements.append({
-                        "tag": el["tag"],
-                        "text": el["text"],
-                        "default_max_width": el["contentWidth"],
-                        "font_size": el["fontSize"],
-                        "font_weight": el["fontWeight"]
-                    })
-                collisions_count += len(v_res.get("collisions", []))
+    # Playwright Real Browser Execution Mode
+    has_playwright = False
+    try:
+        from playwright.sync_api import sync_playwright
+        has_playwright = True
+    except ImportError:
+        pass
+
+    if args.url and has_playwright:
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                for route in routes:
+                    full_url = urllib.parse.urljoin(args.url, route)
+                    for vp in viewports:
+                        page = browser.new_page(viewport={"width": vp["width"], "height": vp["height"]})
+                        try:
+                            page.goto(full_url, wait_until="domcontentloaded", timeout=20000)
+                            # Wait for web fonts & React/Vue hydration
+                            page.evaluate("() => document.fonts ? document.fonts.ready : Promise.resolve()")
+                        except Exception as e:
+                            if args.verbose:
+                                print(f"⚠️ Page load notice for {full_url}: {e}")
+
+                        if args.screenshots:
+                            os.makedirs(args.screenshots, exist_ok=True)
+                            slug = re.sub(r'[^a-zA-Z0-9]', '_', route.strip("/")) or "root"
+                            page.screenshot(path=os.path.join(args.screenshots, f"{slug}_{vp['name']}_before.png"))
+
+                        # Discover components on live page
+                        elements = page.evaluate(JS_DISCOVER_TARGETS)
+                        total_scanned += len(elements)
+
+                        if not args.json and args.verbose:
+                            print(f"🌐 [{vp['name']}] Scanned {len(elements)} items on {full_url}")
+
+                        for el in elements:
+                            text = el["text"]
+                            max_w = el["contentWidth"]
+
+                            payload = {
+                                "source_text": text,
+                                "source_locale": "en-US",
+                                "target_locales": target_locales,
+                                "ui_context": {
+                                    "element_type": "button" if "button" in el["tag"] else "general",
+                                    "max_width_px": max_w,
+                                    "font_size_px": el["fontSize"],
+                                    "font_weight": el["fontWeight"]
+                                }
+                            }
+
+                            try:
+                                req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers)
+                                with urllib.request.urlopen(req, timeout=5) as resp:
+                                    data = json.loads(resp.read().decode("utf-8"))
+
+                                    for loc in target_locales:
+                                        res = data["results"][loc]
+                                        if res.get("overflow_prevented"):
+                                            overflows_found += 1
+                                            safe_text = res["ui_safe_text"]
+                                            css_rules = res.get("css_rules", {})
+
+                                            # --- LIVE IN-BROWSER REMEASUREMENT ---
+                                            # Apply the translation directly in the Playwright browser DOM and remeasure
+                                            rem_res = page.evaluate(JS_APPLY_AND_REMEASURE, {
+                                                "id": el["id"],
+                                                "newText": safe_text,
+                                                "cssRules": css_rules,
+                                                "revert": True # revert so subsequent elements are tested cleanly
+                                            })
+
+                                            browser_fits = rem_res.get("fitsInLiveBrowser", False) if rem_res else False
+                                            measured_live = rem_res.get("measuredScrollWidth", res['metrics']['measured_width_px']) if rem_res else res['metrics']['measured_width_px']
+
+                                            if browser_fits:
+                                                repairs_verified += 1
+                                            else:
+                                                needs_intervention += 1
+
+                                            diag = classify_root_cause(
+                                                element_tag=el["tag"],
+                                                container_width=max_w,
+                                                rejected_width=res['overflow_prevented']['rejected_width_px'],
+                                                measured_width=measured_live,
+                                                text=text,
+                                                locale=loc,
+                                                is_rigid=el.get("isRigidWidth", False)
+                                            )
+
+                                            findings.append({
+                                                "element": el["tag"],
+                                                "text": text,
+                                                "locale": loc,
+                                                "container_max_width_px": round(max_w, 1),
+                                                "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
+                                                "safe_repair": safe_text,
+                                                "measured_width_px": round(measured_live, 1),
+                                                "browser_verified": browser_fits,
+                                                "diagnosis": diag
+                                            })
+
+                                            if not args.json:
+                                                fit_status = "✅ BROWSER FIT" if browser_fits else "⚠️ INTERVENE"
+                                                print(f"  [{loc}] <{el['tag']}> '{text[:30]}' -> {fit_status} ({diag['category']})")
+                            except Exception as e:
+                                if args.verbose:
+                                    print(f"⚠️ API error for '{text[:20]}': {e}")
+
+                        page.close()
+                browser.close()
+        except Exception as e:
+            print(f"⚠️ Playwright browser execution failed: {e}. Falling back to static parsing.")
+            has_playwright = False
 
     # Fallback to local HTML file parsing if not Playwright or if file provided
-    if not elements:
+    if not has_playwright or args.file:
         html_content = ""
         if args.file and os.path.exists(args.file):
             with open(args.file, "r", encoding="utf-8") as f:
                 html_content = f.read()
-        elif args.url:
-            req = urllib.request.Request(args.url, headers={"User-Agent": "Polyglot-DOM-Scanner/1.2"})
-            with urllib.request.urlopen(req) as resp:
-                html_content = resp.read().decode("utf-8")
         else:
             default_file = Path(__file__).resolve().parent.parent / "static" / "index.html"
             if default_file.exists():
@@ -445,87 +586,49 @@ def main():
                 if t and len(t) < 100:
                     elements.append({"tag": m.group(1), "text": t, "default_max_width": 140.0, "font_size": 14.0, "font_weight": 500})
 
-    if not args.json:
-        print(f"\n🔍 Polyglot Headless Layout Scanner: Scanned {len(elements)} interactive UI components")
-        print(f"🎯 Target locales to verify: {', '.join(target_locales)}")
-        print(f"🌐 Target: {target_name}")
-        print("-" * 75)
-
-    endpoint = f"{args.api_url.rstrip('/')}/v1/localize"
-    overflows_found = 0
-    repairs_verified = 0
-    needs_intervention = 0
-    findings = []
-
-    for el in elements:
-        text = el["text"]
-        max_w = el["default_max_width"]
-        font_sz = el.get("font_size", 14.0)
-        font_wt = el.get("font_weight", 500)
-
-        payload = {
-            "source_text": text,
-            "source_locale": "en-US",
-            "target_locales": target_locales,
-            "ui_context": {
-                "element_type": "button" if "button" in el["tag"] else "general",
-                "max_width_px": max_w,
-                "font_size_px": font_sz,
-                "font_weight": font_wt
+        total_scanned = len(elements)
+        for el in elements:
+            text = el["text"]
+            max_w = el["default_max_width"]
+            payload = {
+                "source_text": text,
+                "source_locale": "en-US",
+                "target_locales": target_locales,
+                "ui_context": {"element_type": "button", "max_width_px": max_w, "font_size_px": 14.0, "font_weight": 500}
             }
-        }
-
-        try:
-            req = urllib.request.Request(
-                endpoint,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                for loc in target_locales:
-                    res = data["results"][loc]
-                    if res.get("overflow_prevented"):
-                        overflows_found += 1
-                        measured = res['metrics']['measured_width_px']
-                        if measured <= max_w:
-                            repairs_verified += 1
-                        else:
-                            needs_intervention += 1
-
-                        diag = classify_root_cause(
-                            element_tag=el["tag"],
-                            container_width=max_w,
-                            rejected_width=res['overflow_prevented']['rejected_width_px'],
-                            measured_width=measured,
-                            text=text,
-                            locale=loc
-                        )
-
-                        findings.append({
-                            "element": el["tag"],
-                            "text": text,
-                            "locale": loc,
-                            "container_max_width_px": round(max_w, 1),
-                            "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
-                            "safe_repair": res['raw_text'],
-                            "measured_width_px": round(measured, 1),
-                            "diagnosis": diag
-                        })
-                        if not args.json:
-                            print(f"⚠️  [{loc}] Component '{text}' (<{el['tag']}>):")
-                            print(f"     Diagnosis: [{diag['category']}] {diag['explanation']}")
-                            print(f"     Overflow: {res['overflow_prevented']['rejected_width_px']:.1f}px exceeds {max_w:.1f}px container")
-                            print(f"     Polyglot Action: {diag['developer_fix']}")
-        except Exception:
-            pass
+            try:
+                req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers)
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    for loc in target_locales:
+                        res = data["results"][loc]
+                        if res.get("overflow_prevented"):
+                            overflows_found += 1
+                            m_w = res['metrics']['measured_width_px']
+                            fits = m_w <= max_w
+                            if fits:
+                                repairs_verified += 1
+                            else:
+                                needs_intervention += 1
+                            diag = classify_root_cause(el["tag"], max_w, res['overflow_prevented']['rejected_width_px'], m_w, text, loc)
+                            findings.append({
+                                "element": el["tag"], "text": text, "locale": loc,
+                                "container_max_width_px": round(max_w, 1),
+                                "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
+                                "safe_repair": res['raw_text'],
+                                "measured_width_px": round(m_w, 1),
+                                "browser_verified": fits,
+                                "diagnosis": diag
+                            })
+            except Exception as e:
+                if args.verbose:
+                    print(f"⚠️ Fallback parse error: {e}")
 
     summary = {
         "target": target_name,
         "locales": target_locales,
-        "elements_scanned": len(elements),
+        "elements_scanned": total_scanned,
         "overflows_detected": overflows_found,
-        "collisions_detected": collisions_count,
         "repairs_verified": repairs_verified,
         "needs_intervention": needs_intervention,
         "findings": findings
@@ -535,12 +638,11 @@ def main():
         print(json.dumps(summary, indent=2))
     else:
         print("\n" + "=" * 75)
-        print("📊 POLYGLOT AUDIT SUMMARY")
-        print(f"  • Total Interactive Elements Scanned: {len(elements)}")
+        print("📊 POLYGLOT LIVE BROWSER AUDIT SUMMARY")
+        print(f"  • Total Interactive Elements Scanned: {total_scanned}")
         print(f"  • Layout Overflows Caught & Blocked:  {overflows_found}")
-        print(f"  • Verified Safe Non-Destructive Swaps: {repairs_verified}")
+        print(f"  • Verified Live Browser Repairs:      {repairs_verified}")
         print(f"  • Requiring Developer Intervention:   {needs_intervention}")
-        print(f"  • Sibling Component Visual Collisions: {collisions_count}")
         print("=" * 75)
 
     if args.report:

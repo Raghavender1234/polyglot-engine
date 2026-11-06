@@ -99,6 +99,7 @@ class VerifyPaymentResponse(BaseModel):
 class RegenerateKeyRequest(BaseModel):
     org_id: str
     payment_id: str
+    email: str
 
 class RegenerateKeyResponse(BaseModel):
     status: str

@@ -132,11 +132,12 @@ class RazorpayBilling:
                             detail=f"Payment amount mismatch: expected {order_row['amount']} paise, received {payment.get('amount')} paise."
                         )
 
-                    # Verify payment order_id matches
-                    if payment.get("order_id") and payment.get("order_id") != order_id:
+                    # Strict order_id verification: reject missing or mismatched order_id
+                    payment_order_id = payment.get("order_id")
+                    if not payment_order_id or payment_order_id != order_id:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Payment belongs to order '{payment.get('order_id')}', not '{order_id}'."
+                            detail=f"Payment order_id invalid or mismatched: expected '{order_id}', received '{payment_order_id}'."
                         )
 
                     if payment.get("currency") != (order_row["currency"] or "INR"):
@@ -221,18 +222,24 @@ class RazorpayBilling:
             "monthly_quota": quota
         }
 
-    def regenerate_api_key(self, org_id: str, payment_id: str) -> Dict[str, Any]:
+    def regenerate_api_key(self, org_id: str, payment_id: str, email: str) -> Dict[str, Any]:
         """
         Securely rotates and issues a fresh API key for an existing verified customer,
-        revoking prior active keys.
+        requiring validation of org_id, payment_id, and the registered customer email.
         """
         with db.get_connection() as conn:
-            order_row = conn.execute(
-                "SELECT order_id, plan_id, status FROM razorpay_orders WHERE org_id = ? AND payment_id = ? AND status = 'paid'",
-                (org_id, payment_id)
-            ).fetchone()
+            order_row = conn.execute("""
+                SELECT r.order_id, r.plan_id, r.status, o.email
+                FROM razorpay_orders r
+                JOIN organizations o ON o.id = r.org_id
+                WHERE r.org_id = ? AND r.payment_id = ? AND r.status = 'paid' AND o.email = ?
+            """, (org_id, payment_id, email)).fetchone()
+
             if not order_row:
-                raise HTTPException(status_code=403, detail="Invalid organization ID or payment verification ID.")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Authentication failed: invalid organization ID, payment ID, or unregistered email."
+                )
 
             # Deactivate older keys
             conn.execute("UPDATE api_keys SET is_active = 0 WHERE org_id = ?", (org_id,))
