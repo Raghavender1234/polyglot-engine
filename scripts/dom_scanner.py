@@ -239,16 +239,49 @@ def scan_with_playwright(url: str, viewports: List[Dict[str, int]]):
         return None
 
 
-# --- 3. AUDIT REPORT GENERATOR (HTML & JSON) ---
+# --- 3. ROOT-CAUSE DIAGNOSIS & AUDIT REPORT GENERATOR ---
+def classify_root_cause(element_tag: str, container_width: float, rejected_width: float, measured_width: float, text: str, locale: str) -> Dict[str, str]:
+    """
+    Root-Cause Diagnostic Engine:
+    Distinguishes whether a layout failure is caused by:
+    1. CSS_LAYOUT_CONSTRAINT: Container width is unrealistically constrained (<90px for buttons/labels)
+    2. BIDI_ISOLATION: RTL languages (ar-SA, ur-PK) with mixed numbers/symbols
+    3. TEXT_VERBOSITY: Natural language expansion on a standard container
+    """
+    is_rtl = locale in ("ar-SA", "ur-PK", "he-IL", "fa-IR")
+    has_mixed_bidi = bool(re.search(r'[\$\d\%\+\-\/\#]', text)) and is_rtl
+
+    if container_width < 90.0 and len(text) > 4:
+        return {
+            "category": "CSS_LAYOUT_CONSTRAINT",
+            "badge_class": "badge-orange",
+            "explanation": f"Container width ({container_width:.1f}px) is rigidly constrained.",
+            "developer_fix": f"Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'."
+        }
+    elif has_mixed_bidi:
+        return {
+            "category": "BIDI_ISOLATION",
+            "badge_class": "badge-cyan",
+            "explanation": f"Mixed directional glyphs in {locale} causing punctuation inversion.",
+            "developer_fix": "Wrapped with Unicode isolates (\\u2066...\\u2069) and dir='rtl'."
+        }
+    else:
+        return {
+            "category": "TEXT_VERBOSITY",
+            "badge_class": "badge-purple",
+            "explanation": f"Linguistic expansion (+{rejected_width - container_width:.1f}px overflow).",
+            "developer_fix": "Swapped to HarfBuzz-verified compact variant."
+        }
+
 def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Polyglot Engine — Layout Audit Report</title>
+  <title>Polyglot Engine — Layout Audit & Diagnosis Report</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 32px; }}
-    .container {{ max-width: 1000px; margin: 0 auto; }}
+    .container {{ max-width: 1100px; margin: 0 auto; }}
     .header {{ border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }}
     .header h1 {{ margin: 0; font-size: 24px; color: #60a5fa; }}
     .badge {{ background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 12px; font-size: 12px; color: #94a3b8; }}
@@ -263,18 +296,23 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
     th, td {{ padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }}
     th {{ background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }}
     .tag {{ background: #334155; border-radius: 4px; padding: 2px 6px; font-family: monospace; }}
+    .badge-diag {{ font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; }}
+    .badge-purple {{ background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }}
+    .badge-orange {{ background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }}
+    .badge-cyan {{ background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }}
     .status-fit {{ color: #10b981; font-weight: 600; }}
     .status-overflow {{ color: #f59e0b; font-weight: 600; }}
+    .status-intervene {{ color: #f97316; font-weight: 600; }}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div>
-        <h1>⚡ Polyglot Engine — Layout Audit Report</h1>
+        <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: {summary['target']} | Tested Locales: {', '.join(summary['locales'])}</div>
       </div>
-      <div class="badge">Engine v1.2.0 • HarfBuzz Verified</div>
+      <div class="badge">Engine v1.2.0 • Root-Cause Diagnosis Active</div>
     </div>
 
     <div class="grid">
@@ -296,31 +334,39 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
       </div>
     </div>
 
-    <h2 style="font-size: 18px; margin-bottom: 12px;">Component Layout Audit Log</h2>
+    <h2 style="font-size: 18px; margin-bottom: 12px;">Component Layout Audit & Diagnosis Log</h2>
     <table>
       <thead>
         <tr>
           <th>Component</th>
           <th>Original Text</th>
           <th>Locale</th>
-          <th>Container Limit</th>
-          <th>Rejected Full Width</th>
-          <th>Polyglot Safe Swap</th>
+          <th>Root Cause Diagnosis</th>
+          <th>Container vs Overflow</th>
+          <th>Action / Developer Recommendation</th>
           <th>Status</th>
         </tr>
       </thead>
       <tbody>
 """
     for item in summary.get("findings", []):
+        diag = item.get("diagnosis", {})
+        badge_cls = diag.get("badge_class", "badge-purple")
+        cat = diag.get("category", "TEXT_VERBOSITY")
+        fix = diag.get("developer_fix", item['safe_repair'])
+
+        is_intervene = item['measured_width_px'] > item['container_max_width_px']
+        status_html = '<span class="status-intervene">⚠️ Needs Intervention</span>' if is_intervene else f'<span class="status-fit">✅ Fits ({item["container_max_width_px"] - item["measured_width_px"]:.1f}px headroom)</span>'
+
         html += f"""
         <tr>
           <td><span class="tag">&lt;{item['element']}&gt;</span></td>
           <td>{item['text']}</td>
           <td><strong>{item['locale']}</strong></td>
-          <td>{item['container_max_width_px']}px</td>
-          <td class="status-overflow">+{item['rejected_width_px'] - item['container_max_width_px']:.1f}px ({item['rejected_width_px']:.1f}px)</td>
-          <td><code>{item['safe_repair']}</code> ({item['measured_width_px']:.1f}px)</td>
-          <td class="status-fit">✅ Fits ({item['container_max_width_px'] - item['measured_width_px']:.1f}px headroom)</td>
+          <td><span class="badge-diag {badge_cls}">{cat}</span></td>
+          <td class="status-overflow">{item['container_max_width_px']}px limit<br><small style="color: #94a3b8;">+{item['rejected_width_px'] - item['container_max_width_px']:.1f}px overflow</small></td>
+          <td><strong>{fix}</strong><br><small style="color: #94a3b8;">Swap: <code>{item['safe_repair']}</code> ({item['measured_width_px']:.1f}px)</small></td>
+          <td>{status_html}</td>
         </tr>
 """
     html += """
@@ -447,6 +493,15 @@ def main():
                         else:
                             needs_intervention += 1
 
+                        diag = classify_root_cause(
+                            element_tag=el["tag"],
+                            container_width=max_w,
+                            rejected_width=res['overflow_prevented']['rejected_width_px'],
+                            measured_width=measured,
+                            text=text,
+                            locale=loc
+                        )
+
                         findings.append({
                             "element": el["tag"],
                             "text": text,
@@ -454,12 +509,14 @@ def main():
                             "container_max_width_px": round(max_w, 1),
                             "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
                             "safe_repair": res['raw_text'],
-                            "measured_width_px": round(measured, 1)
+                            "measured_width_px": round(measured, 1),
+                            "diagnosis": diag
                         })
                         if not args.json:
                             print(f"⚠️  [{loc}] Component '{text}' (<{el['tag']}>):")
+                            print(f"     Diagnosis: [{diag['category']}] {diag['explanation']}")
                             print(f"     Overflow: {res['overflow_prevented']['rejected_width_px']:.1f}px exceeds {max_w:.1f}px container")
-                            print(f"     Polyglot Verified Swap: '{res['raw_text']}' ({measured:.1f}px, FITS)")
+                            print(f"     Polyglot Action: {diag['developer_fix']}")
         except Exception:
             pass
 

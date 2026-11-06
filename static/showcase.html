@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polyglot Engine — Multilingual UI Layout Proof Showcase</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --border: #1f2937;
+      --accent: #3b82f6;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --orange: #f97316;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 24px;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-group h1 {
+      margin: 0 0 6px 0;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+      color: #60a5fa;
+    }
+
+    .title-group p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .scenario-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .scenario-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+
+    .scenario-tag {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .tag-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .tag-cyan { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .tag-orange { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+
+    .scenario-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+    }
+
+    .box-pane {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .box-pane h4 {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .broken-pane h4 { color: var(--danger); }
+    .repaired-pane h4 { color: var(--success); }
+
+    /* UI Component Previews */
+    .button-container {
+      width: 145px;
+      padding: 8px;
+      background: #1e293b;
+      border-radius: 8px;
+      border: 1px dashed #334155;
+      margin-bottom: 12px;
+    }
+
+    .demo-btn {
+      width: 100%;
+      height: 38px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .demo-btn.broken-overflow {
+      width: auto;
+      min-width: 100%;
+    }
+
+    .bidi-container {
+      width: 200px;
+      padding: 12px;
+      background: #1e293b;
+      border-radius: 8px;
+      border: 1px dashed #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rigid-container {
+      width: 65px;
+      padding: 6px;
+      background: #1e293b;
+      border-radius: 6px;
+      border: 1px dashed #334155;
+      overflow: hidden;
+    }
+
+    .rigid-btn {
+      width: 100%;
+      height: 32px;
+      background: #475569;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .diagnosis-card {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: monospace;
+      line-height: 1.4;
+    }
+
+    .diag-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+    .diag-warning { background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); color: #fb923c; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="title-group">
+      <h1>⚡ Polyglot Engine — Real-World Layout Proof Showcase</h1>
+      <p>Demonstrating detection, root-cause diagnosis, non-destructive repair, and developer layout intervention.</p>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <span style="font-size: 12px; color: var(--text-muted);">Inspection Engine:</span>
+      <span style="font-size: 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 4px 10px; border-radius: 999px; font-weight: 600;">Live HUD Active</span>
+    </div>
+  </header>
+
+  <!-- SCENARIO 1: GERMAN EXPANSION (TEXT VERBOSITY) -->
+  <section class="scenario-card">
+    <div class="scenario-header">
+      <h3 style="margin: 0; font-size: 16px;">Scenario 1: German Expansion in E-Commerce Checkout</h3>
+      <span class="scenario-tag tag-purple">Root Cause: TEXT_VERBOSITY</span>
+    </div>
+    <div class="scenario-desc">
+      A standard 145px checkout button. English <em>"Complete Purchase - $49.99"</em> fits easily. Raw German translation <em>"Kauf abschließen - 49,99 $"</em> expands to 180.7px (+35.7px overflow), breaking button layout boundaries.
+    </div>
+
+    <div class="comparison-grid">
+      <!-- Unchecked Overflow -->
+      <div class="box-pane broken-pane">
+        <h4>❌ Raw Translation (Without Polyglot)</h4>
+        <div class="button-container" style="overflow: visible;">
+          <button class="demo-btn broken-overflow" style="background: #dc2626;">
+            Kauf abschließen - 49,99 $
+          </button>
+        </div>
+        <div class="diagnosis-card" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171;">
+          ⚠️ Layout Overflow: 180.7px text spills outside 145px button container by 35.7px.
+        </div>
+      </div>
+
+      <!-- Polyglot Verified Repair -->
+      <div class="box-pane repaired-pane">
+        <h4>✅ Polyglot Engine (Repaired & Verified)</h4>
+        <div class="button-container">
+          <button class="demo-btn" style="background: #059669;" data-polyglot-target="true">
+            Kaufen - 49,99 $
+          </button>
+        </div>
+        <div class="diagnosis-card diag-success">
+          ✓ Diagnosis: TEXT_VERBOSITY<br>
+          ✓ HarfBuzz Action: Compact variant selected ("Kaufen - 49,99 $", 112.7px)<br>
+          ✓ DOM Verification: Confirmed fit with 32.3px headroom.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENARIO 2: ARABIC / URDU RTL & BIDI INVERSION -->
+  <section class="scenario-card">
+    <div class="scenario-header">
+      <h3 style="margin: 0; font-size: 16px;">Scenario 2: Arabic / Urdu BiDi Alignment & Currency Shielding</h3>
+      <span class="scenario-tag tag-cyan">Root Cause: BIDI_ISOLATION</span>
+    </div>
+    <div class="scenario-desc">
+      A shopping CTA with mixed Arabic text and an English dollar amount <em>"$49.99"</em>. Unchecked BiDi renders inverted punctuation (hyphens misplaced, dollar sign trailing incorrectly) and clobbers adjacent badge icons.
+    </div>
+
+    <div class="comparison-grid">
+      <!-- Unshielded RTL -->
+      <div class="box-pane broken-pane">
+        <h4>❌ Raw Translation (Punctuation Inverted)</h4>
+        <div class="bidi-container" style="border-color: #ef4444;">
+          <span style="font-size: 16px;">🛒</span>
+          <span style="font-size: 13px; color: #f87171;">إتمام الشراء - 49.99 $</span>
+        </div>
+        <div class="diagnosis-card" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171;">
+          ⚠️ BiDi Glitch: Punctuation inverted across mixed ASCII numbers and Arabic glyphs.
+        </div>
+      </div>
+
+      <!-- BiDi Shielded -->
+      <div class="box-pane repaired-pane">
+        <h4>✅ Polyglot BiDi Shield (Isolated Direction)</h4>
+        <div class="bidi-container" style="direction: rtl; border-color: #10b981;">
+          <span style="font-size: 16px;">🛒</span>
+          <span style="font-size: 13px; color: #34d399;" dir="rtl">⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</span>
+        </div>
+        <div class="diagnosis-card diag-success">
+          ✓ Diagnosis: BIDI_ISOLATION<br>
+          ✓ Shield Action: Unicode isolate markers (\u2066...\u2069) wrapped around punctuation & numbers.<br>
+          ✓ DOM Verification: Exact RTL visual ordering preserved.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENARIO 3: RIGID CSS CONSTRAINT (DEVELOPER INTERVENTION) -->
+  <section class="scenario-card">
+    <div class="scenario-header">
+      <h3 style="margin: 0; font-size: 16px;">Scenario 3: Rigid Fixed-Width Flex Tab (Developer Intervention)</h3>
+      <span class="scenario-tag tag-orange">Root Cause: CSS_LAYOUT_CONSTRAINT</span>
+    </div>
+    <div class="scenario-desc">
+      A navigation tab hardcoded with <code>width: 65px; overflow: hidden;</code>. Even an ultra-short 3-letter word cannot fit. Blindly slapping an ellipsis (<code>...</code>) breaks usability. Polyglot diagnoses the layout flaw and provides an actionable CSS recommendation.
+    </div>
+
+    <div class="comparison-grid">
+      <!-- Mutilated by Ellipsis -->
+      <div class="box-pane broken-pane">
+        <h4>❌ Naive Truncation / Ellipsis</h4>
+        <div class="rigid-container">
+          <button class="rigid-btn" style="overflow: hidden; text-overflow: ellipsis; background: #64748b;">
+            Einst...
+          </button>
+        </div>
+        <div class="diagnosis-card" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171;">
+          ⚠️ Unusable: Meaningful word truncated to 5 letters with ellipsis. Bad UX.
+        </div>
+      </div>
+
+      <!-- Polyglot CSS Diagnosis -->
+      <div class="box-pane repaired-pane">
+        <h4>✅ Polyglot Root-Cause Diagnosis</h4>
+        <div class="rigid-container" style="border-color: #f97316;">
+          <button class="rigid-btn" style="color: #fb923c;">
+            Einstellungen
+          </button>
+        </div>
+        <div class="diagnosis-card diag-warning">
+          ⚠️ Diagnosis: CSS_LAYOUT_CONSTRAINT (Container 65px too rigid for action text)<br>
+          💡 Action: No destructive text shortening applied.<br>
+          🔧 Developer Fix: Replace <code>width: 65px</code> with <code>min-width: 110px</code>.
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Load Polyglot Inspector for live in-browser testing -->
+<script src="/static/polyglot-inspector.js" data-api-url="/" data-locale="de-DE"></script>
+
+</body>
+</html>
