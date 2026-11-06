@@ -47,20 +47,25 @@ class Database:
             )
             """)
 
-            # Razorpay Orders
+            # Razorpay Orders (stores plan_id to prevent client-side plan tampering)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS razorpay_orders (
                 order_id TEXT PRIMARY KEY,
                 payment_id TEXT,
                 org_id TEXT,
-                amount INTEGER,
-                currency TEXT,
-                status TEXT,
+                plan_id TEXT DEFAULT 'starter',
+                amount INTEGER NOT NULL,
+                currency TEXT DEFAULT 'INR',
+                status TEXT DEFAULT 'created',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
+            try:
+                cursor.execute("ALTER TABLE razorpay_orders ADD COLUMN plan_id TEXT DEFAULT 'starter'")
+            except sqlite3.OperationalError:
+                pass
 
-            # Cache
+            # Translation Cache
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS translation_cache (
                 hash_key TEXT PRIMARY KEY,
@@ -95,7 +100,7 @@ class Database:
 
             conn.commit()
 
-    # Cache Operations (Fixed to include all request parameters)
+    # Cache Operations (complete parameter coverage)
     def generate_cache_key(
         self,
         source_text: str,
@@ -177,12 +182,8 @@ class Database:
         raw_key, _ = self.create_api_key(org_id)
         return org_id, raw_key
 
-    # Atomic Quota Check & Reservation (Fixes quota race condition)
+    # Atomic Quota Check & Reservation
     def check_and_reserve_quota(self, org_id: str, count: int = 1) -> bool:
-        """
-        Atomically increments usage only if usage + count <= monthly_quota.
-        Returns True if quota was reserved, False if quota exceeded.
-        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -192,6 +193,16 @@ class Database:
             """, (count, org_id, count))
             conn.commit()
             return cursor.rowcount > 0
+
+    # Quota Rollback (refunds quota if request fails mid-flight)
+    def rollback_quota(self, org_id: str, count: int = 1):
+        with self.get_connection() as conn:
+            conn.execute("""
+            UPDATE organizations
+            SET usage_count = MAX(0, usage_count - ?)
+            WHERE id = ?
+            """, (count, org_id))
+            conn.commit()
 
     def get_glossary(self, glossary_id: Optional[str]) -> Optional[Dict[str, str]]:
         if not glossary_id:

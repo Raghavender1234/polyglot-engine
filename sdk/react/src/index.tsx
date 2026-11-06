@@ -37,7 +37,7 @@ export interface LocalizeResult {
   metrics: {
     measured_width_px: number;
     max_width_px: number;
-    fits_container: bool;
+    fits_container: boolean;
     recommended_font_scale: number;
   };
   css_rules: CSSRules;
@@ -49,9 +49,11 @@ interface PolyglotContextType {
   localizeText: (
     sourceText: string,
     targetLocale: string,
+    sourceLocale: string,
     maxWidthPx: number,
     fontSizePx?: number,
-    fontWeight?: number
+    fontWeight?: number,
+    signal?: AbortSignal
   ) => Promise<LocalizeResult>;
 }
 
@@ -74,28 +76,31 @@ export function PolyglotProvider({
     async (
       sourceText: string,
       targetLocale: string,
+      sourceLocale: string = defaultLocale,
       maxWidthPx: number,
       fontSizePx: number = 14,
-      fontWeight: number = 400
+      fontWeight: number = 400,
+      signal?: AbortSignal
     ): Promise<LocalizeResult> => {
-      const cacheKey = `${sourceText}|${targetLocale}|${Math.round(maxWidthPx)}|${fontSizePx}|${fontWeight}`;
+      const cacheKey = `${sourceText}|${sourceLocale}|${targetLocale}|${Math.round(maxWidthPx)}|${fontSizePx}|${fontWeight}`;
       if (cache.has(cacheKey)) {
         return cache.get(cacheKey)!;
       }
 
       const res = await fetch(`${apiUrl.replace(/\/$/, '')}/v1/localize`, {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'X-API-Key': apiKey } : {})
         },
         body: JSON.stringify({
           source_text: sourceText,
-          source_locale: defaultLocale,
+          source_locale: sourceLocale,
           target_locales: [targetLocale],
           ui_context: {
             element_type: 'button',
-            max_width_px: Math.max(maxWidthPx, 40),
+            max_width_px: Math.max(maxWidthPx, 30),
             font_size_px: fontSizePx,
             font_weight: fontWeight
           }
@@ -125,6 +130,7 @@ export function usePolyglot(
   sourceText: string,
   targetLocale: string,
   options: {
+    sourceLocale?: string;
     maxWidthPx?: number;
     fontSizePx?: number;
     fontWeight?: number;
@@ -136,39 +142,72 @@ export function usePolyglot(
   const [error, setError] = useState<Error | null>(null);
 
   const containerRef = useRef<HTMLElement | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(options.maxWidthPx || null);
+
+  // ResizeObserver: monitors parent element width dynamically
+  useEffect(() => {
+    if (options.maxWidthPx) {
+      setMeasuredWidth(options.maxWidthPx);
+      return;
+    }
+
+    const node = containerRef.current;
+    if (!node || typeof window === 'undefined' || !('ResizeObserver' in window)) {
+      return;
+    }
+
+    const targetToObserve = node.parentElement || node;
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          const width = entry.contentRect.width;
+          if (width > 0) {
+            setMeasuredWidth(width);
+          }
+        }, 80);
+      }
+    });
+
+    observer.observe(targetToObserve);
+
+    return () => {
+      clearTimeout(debounceTimer);
+      observer.disconnect();
+    };
+  }, [options.maxWidthPx]);
 
   useEffect(() => {
     let isMounted = true;
+    const abortController = new AbortController();
 
     async function compute() {
-      if (!context) return;
+      if (!context || !sourceText || !targetLocale) return;
       setLoading(true);
       setError(null);
 
       try {
-        let width = options.maxWidthPx;
-        if (!width && containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          const computedStyle = window.getComputedStyle(containerRef.current);
-          const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-          const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-          width = rect.width - paddingLeft - paddingRight;
-        }
+        const effectiveWidth = measuredWidth && measuredWidth > 0 ? measuredWidth : 145;
+        const srcLoc = options.sourceLocale || context.config.defaultLocale || 'en-US';
 
-        const effectiveWidth = width && width > 0 ? width : 145;
         const res = await context.localizeText(
           sourceText,
           targetLocale,
+          srcLoc,
           effectiveWidth,
           options.fontSizePx || 14,
-          options.fontWeight || 400
+          options.fontWeight || 400,
+          abortController.signal
         );
 
         if (isMounted) {
           setResult(res);
         }
-      } catch (err) {
-        if (isMounted) {
+      } catch (err: any) {
+        if (isMounted && err.name !== 'AbortError') {
           setError(err instanceof Error ? err : new Error(String(err)));
         }
       } finally {
@@ -182,37 +221,45 @@ export function usePolyglot(
 
     return () => {
       isMounted = false;
+      abortController.abort();
     };
-  }, [context, sourceText, targetLocale, options.maxWidthPx, options.fontSizePx, options.fontWeight]);
+  }, [context, sourceText, targetLocale, measuredWidth, options.sourceLocale, options.fontSizePx, options.fontWeight]);
 
-  return { result, loading, error, containerRef };
+  return { result, loading, error, containerRef, measuredWidth };
 }
 
 export interface SmartTextProps extends HTMLAttributes<HTMLSpanElement> {
-  sourceText: string;
+  sourceText?: string;
   targetLocale: string;
+  sourceLocale?: string;
   maxWidthPx?: number;
   fontSizePx?: number;
   fontWeight?: number;
+  children?: ReactNode;
 }
 
 export function SmartText({
   sourceText,
   targetLocale,
+  sourceLocale,
   maxWidthPx,
   fontSizePx = 14,
   fontWeight = 400,
   style,
   className,
+  children,
   ...rest
 }: SmartTextProps) {
-  const { result, loading, containerRef } = usePolyglot(sourceText, targetLocale, {
+  const resolvedText = sourceText || (typeof children === 'string' ? children : '');
+
+  const { result, containerRef } = usePolyglot(resolvedText, targetLocale, {
+    sourceLocale,
     maxWidthPx,
     fontSizePx,
     fontWeight
   });
 
-  const displayText = result ? result.ui_safe_text : sourceText;
+  const displayText = result ? result.ui_safe_text : (sourceText || children);
 
   const dynamicStyle: CSSProperties = {
     ...style,
@@ -235,16 +282,19 @@ export function SmartText({
 }
 
 export interface SmartButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  sourceText: string;
+  sourceText?: string;
   targetLocale: string;
+  sourceLocale?: string;
   maxWidthPx?: number;
   fontSizePx?: number;
   fontWeight?: number;
+  children?: ReactNode;
 }
 
 export function SmartButton({
   sourceText,
   targetLocale,
+  sourceLocale,
   maxWidthPx,
   fontSizePx = 14,
   fontWeight = 600,
@@ -253,13 +303,31 @@ export function SmartButton({
   children,
   ...rest
 }: SmartButtonProps) {
-  const { result, loading, containerRef } = usePolyglot(sourceText, targetLocale, {
+  const resolvedText = sourceText || (typeof children === 'string' ? children : '');
+
+  const { result, containerRef } = usePolyglot(resolvedText, targetLocale, {
+    sourceLocale,
     maxWidthPx,
     fontSizePx,
     fontWeight
   });
 
-  const displayText = result ? result.ui_safe_text : sourceText;
+  // Preserve child elements (e.g., icons) if children is non-string or compound
+  let contentToRender: ReactNode = resolvedText;
+  if (result) {
+    if (typeof children === 'string' || !children) {
+      contentToRender = result.ui_safe_text;
+    } else {
+      contentToRender = (
+        <>
+          {result.ui_safe_text}
+          {React.Children.map(children, (child) => (typeof child === 'string' ? null : child))}
+        </>
+      );
+    }
+  } else {
+    contentToRender = children || sourceText;
+  }
 
   const dynamicStyle: CSSProperties = {
     ...style,
@@ -277,7 +345,7 @@ export function SmartButton({
       title={result?.overflow_prevented ? `Original: ${result.overflow_prevented.rejected_full_text}` : undefined}
       {...rest}
     >
-      {displayText}
+      {contentToRender}
     </button>
   );
 }

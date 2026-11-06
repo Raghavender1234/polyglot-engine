@@ -125,109 +125,116 @@ def localize_endpoint(
     glossary = db.get_glossary(req.glossary_id)
     results = {}
 
-    for target_locale in req.target_locales:
-        # Cache key includes all variables: source_locale, target_locale, max_width, font_size, font_weight, padding_x, glossary
-        cache_key = db.generate_cache_key(
-            source_text=req.source_text,
-            source_locale=req.source_locale,
-            target_locale=target_locale,
-            max_width_px=req.ui_context.max_width_px,
-            font_size_px=req.ui_context.font_size_px,
-            font_weight=req.ui_context.font_weight,
-            padding_x_px=req.ui_context.padding_x_px,
-            glossary_id=req.glossary_id
-        )
-        cached_result = db.get_cache(cache_key)
-        if cached_result:
-            results[target_locale] = LocaleResult(**cached_result)
-            continue
-
-        # 1. Fetch 3 length variants (1-pass LLM call or instant cache/preset)
-        variants = llm_engine.translate_with_variants(
-            source_text=req.source_text,
-            source_locale=req.source_locale,
-            target_locale=target_locale,
-            glossary=glossary
-        )
-
-        # 2. Shape and measure all 3 variants with HarfBuzz
-        w_standard, _ = harfbuzz_engine.measure_text(
-            variants.standard, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
-        )
-        w_compact, _ = harfbuzz_engine.measure_text(
-            variants.compact, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
-        )
-        w_ultra, _ = harfbuzz_engine.measure_text(
-            variants.ultra_short, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
-        )
-
-        # 3. Deterministic selection: pick the best variant that fits
-        overflow_prevented = None
-        if w_standard <= effective_max_width:
-            chosen_text = variants.standard
-            chosen_width = w_standard
-            variant_used = "standard"
-            fits_container = True
-            font_scale = 1.0
-        elif w_compact <= effective_max_width:
-            chosen_text = variants.compact
-            chosen_width = w_compact
-            variant_used = "compact"
-            fits_container = True
-            font_scale = 1.0
-            overflow_prevented = OverflowPrevented(
-                rejected_full_text=variants.standard,
-                rejected_width_px=w_standard
-            )
-        elif w_ultra <= effective_max_width:
-            chosen_text = variants.ultra_short
-            chosen_width = w_ultra
-            variant_used = "ultra_short"
-            fits_container = True
-            font_scale = 1.0
-            overflow_prevented = OverflowPrevented(
-                rejected_full_text=variants.standard,
-                rejected_width_px=w_standard
-            )
-        else:
-            chosen_text = variants.ultra_short
-            chosen_width = w_ultra
-            variant_used = "ultra_short"
-            fits_container = False
-            font_scale = round(effective_max_width / max(w_ultra, 1.0), 2)
-            overflow_prevented = OverflowPrevented(
-                rejected_full_text=variants.standard,
-                rejected_width_px=w_standard
-            )
-
-        # 4. Apply BiDi Shield (Unicode isolates)
-        ui_safe_text = shield_bidi_text(chosen_text, target_locale)
-
-        # 5. Attach CSS Rules
-        css_rules = get_css_rules(target_locale, req.ui_context.font_size_px)
-
-        locale_result = LocaleResult(
-            raw_text=chosen_text,
-            ui_safe_text=ui_safe_text,
-            variant_used=variant_used,
-            overflow_prevented=overflow_prevented,
-            metrics=Metrics(
-                measured_width_px=chosen_width,
+    try:
+        for target_locale in req.target_locales:
+            # Cache key includes all variables: source_locale, target_locale, max_width, font_size, font_weight, padding_x, glossary
+            cache_key = db.generate_cache_key(
+                source_text=req.source_text,
+                source_locale=req.source_locale,
+                target_locale=target_locale,
                 max_width_px=req.ui_context.max_width_px,
-                fits_container=fits_container,
-                recommended_font_scale=font_scale
-            ),
-            css_rules=css_rules
+                font_size_px=req.ui_context.font_size_px,
+                font_weight=req.ui_context.font_weight,
+                padding_x_px=req.ui_context.padding_x_px,
+                glossary_id=req.glossary_id
+            )
+            cached_result = db.get_cache(cache_key)
+            if cached_result:
+                results[target_locale] = LocaleResult(**cached_result)
+                continue
+
+            # 1. Fetch 3 length variants (1-pass LLM call or instant cache/preset)
+            variants = llm_engine.translate_with_variants(
+                source_text=req.source_text,
+                source_locale=req.source_locale,
+                target_locale=target_locale,
+                glossary=glossary
+            )
+
+            # 2. Shape and measure all 3 variants with HarfBuzz
+            w_standard, _ = harfbuzz_engine.measure_text(
+                variants.standard, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
+            )
+            w_compact, _ = harfbuzz_engine.measure_text(
+                variants.compact, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
+            )
+            w_ultra, _ = harfbuzz_engine.measure_text(
+                variants.ultra_short, target_locale, req.ui_context.font_size_px, req.ui_context.font_weight
+            )
+
+            # 3. Deterministic selection: pick the best variant that fits
+            overflow_prevented = None
+            if w_standard <= effective_max_width:
+                chosen_text = variants.standard
+                chosen_width = w_standard
+                variant_used = "standard"
+                fits_container = True
+                font_scale = 1.0
+            elif w_compact <= effective_max_width:
+                chosen_text = variants.compact
+                chosen_width = w_compact
+                variant_used = "compact"
+                fits_container = True
+                font_scale = 1.0
+                overflow_prevented = OverflowPrevented(
+                    rejected_full_text=variants.standard,
+                    rejected_width_px=w_standard
+                )
+            elif w_ultra <= effective_max_width:
+                chosen_text = variants.ultra_short
+                chosen_width = w_ultra
+                variant_used = "ultra_short"
+                fits_container = True
+                font_scale = 1.0
+                overflow_prevented = OverflowPrevented(
+                    rejected_full_text=variants.standard,
+                    rejected_width_px=w_standard
+                )
+            else:
+                chosen_text = variants.ultra_short
+                chosen_width = w_ultra
+                variant_used = "ultra_short"
+                fits_container = False
+                font_scale = round(effective_max_width / max(w_ultra, 1.0), 2)
+                overflow_prevented = OverflowPrevented(
+                    rejected_full_text=variants.standard,
+                    rejected_width_px=w_standard
+                )
+
+            # 4. Apply BiDi Shield (Unicode isolates)
+            ui_safe_text = shield_bidi_text(chosen_text, target_locale)
+
+            # 5. Attach CSS Rules
+            css_rules = get_css_rules(target_locale, req.ui_context.font_size_px)
+
+            locale_result = LocaleResult(
+                raw_text=chosen_text,
+                ui_safe_text=ui_safe_text,
+                variant_used=variant_used,
+                overflow_prevented=overflow_prevented,
+                metrics=Metrics(
+                    measured_width_px=chosen_width,
+                    max_width_px=req.ui_context.max_width_px,
+                    fits_container=fits_container,
+                    recommended_font_scale=font_scale
+                ),
+                css_rules=css_rules
+            )
+
+            # Cache the result in SQLite
+            db.set_cache(cache_key, locale_result.model_dump())
+            results[target_locale] = locale_result
+
+        return LocalizeResponse(
+            source_text=req.source_text,
+            results=results
         )
-
-        # Cache the result in SQLite
-        db.set_cache(cache_key, locale_result.model_dump())
-        results[target_locale] = locale_result
-
-    return LocalizeResponse(
-        source_text=req.source_text,
-        results=results
-    )
+    except Exception as e:
+        # Refund reserved quota if processing fails
+        db.rollback_quota(org_id, count=requested_count)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Localization engine error: {str(e)}")
 
 # --- RAZORPAY BILLING ROUTES ---
 
@@ -252,7 +259,6 @@ def verify_payment_endpoint(req: VerifyPaymentRequest, request: Request):
         order_id=req.razorpay_order_id,
         payment_id=req.razorpay_payment_id,
         signature=req.razorpay_signature,
-        plan_id=req.plan_id,
         email=req.email,
         name=req.name
     )
