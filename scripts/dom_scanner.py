@@ -282,11 +282,19 @@ def classify_root_cause(
     has_mixed_bidi = bool(re.search(r'[\$\d\%\+\-\/\#]', text)) and is_rtl
 
     if (container_width < 90.0 or is_rigid) and len(text) > 4:
+        needed_w = max(110.0, measured_width + 16.0)
+        if element_tag in ("button", "a", "input[submit]", "input[button]"):
+            dev_fix = f"Set 'min-width: {needed_w:.0f}px; flex-shrink: 0;' to prevent action clipping."
+        elif element_tag in ("h1", "h2", "h3", "h4"):
+            dev_fix = "Remove fixed width constraint; allow multi-line heading wrap."
+        else:
+            dev_fix = f"Set 'min-width: fit-content;' (container needs ~{needed_w:.0f}px)."
+
         return {
             "category": "CSS_LAYOUT_CONSTRAINT",
             "badge_class": "badge-orange",
-            "explanation": f"Container width ({container_width:.1f}px) is rigidly constrained.",
-            "developer_fix": f"Replace hardcoded width with 'min-width: 110px' or 'min-width: fit-content'."
+            "explanation": f"Rigid container ({container_width:.1f}px) cannot accommodate content.",
+            "developer_fix": dev_fix
         }
     elif has_mixed_bidi:
         return {
@@ -344,7 +352,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: {summary['target']} | Tested Locales: {', '.join(summary['locales'])}</div>
       </div>
-      <div class="badge">Engine v1.2.0 • Live In-Browser Reflow Verified</div>
+      <div class="badge">{summary.get('mode_label', 'Engine v1.2.0')}</div>
     </div>
 
     <div class="grid">
@@ -387,8 +395,17 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         cat = diag.get("category", "TEXT_VERBOSITY")
         fix = diag.get("developer_fix", item['safe_repair'])
 
-        verified_fit = item.get("browser_verified", item['measured_width_px'] <= item['container_max_width_px'])
-        status_html = f'<span class="status-fit">✅ Live Browser Fit ({item["container_max_width_px"] - item["measured_width_px"]:.1f}px headroom)</span>' if verified_fit else '<span class="status-intervene">⚠️ Needs CSS Intervention</span>'
+        avail_w = item["container_max_width_px"]
+        meas_w = item["measured_width_px"]
+        headroom = avail_w - meas_w
+        browser_fits = item.get("browser_verified", headroom >= 0)
+
+        if browser_fits and headroom >= 0:
+            status_html = f'<span class="status-fit">✅ Live Browser Fit (+{headroom:.1f}px headroom)</span>'
+        elif browser_fits and headroom < 0:
+            status_html = f'<span class="status-intervene">⚠️ Layout Expansion (+{abs(headroom):.1f}px deficit)</span>'
+        else:
+            status_html = f'<span class="status-intervene">⚠️ Deficit (-{abs(headroom):.1f}px overflow)</span>'
 
         html += f"""
         <tr>
@@ -624,8 +641,12 @@ def main():
                 if args.verbose:
                     print(f"⚠️ Fallback parse error: {e}")
 
+    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    mode_label = "Mode: Neural Localization (GPT-4o-mini & HarfBuzz)" if has_openai else "Mode: I18N Pseudo-Localization Stress-Test (+35% Accented Expansion)"
+
     summary = {
         "target": target_name,
+        "mode_label": mode_label,
         "locales": target_locales,
         "elements_scanned": total_scanned,
         "overflows_detected": overflows_found,
