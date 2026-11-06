@@ -95,9 +95,28 @@ class Database:
 
             conn.commit()
 
-    # Cache Operations
-    def generate_cache_key(self, source_text: str, locale: str, max_width_px: float, font_size_px: float, font_weight: int) -> str:
-        raw = f"{source_text}|{locale.lower()}|{max_width_px:.1f}|{font_size_px:.1f}|{font_weight}"
+    # Cache Operations (Fixed to include all request parameters)
+    def generate_cache_key(
+        self,
+        source_text: str,
+        source_locale: str,
+        target_locale: str,
+        max_width_px: float,
+        font_size_px: float,
+        font_weight: int,
+        padding_x_px: float = 0.0,
+        glossary_id: Optional[str] = None
+    ) -> str:
+        raw = (
+            f"{source_text.strip()}|"
+            f"{source_locale.lower()}|"
+            f"{target_locale.lower()}|"
+            f"{max_width_px:.1f}|"
+            f"{font_size_px:.1f}|"
+            f"{font_weight}|"
+            f"{padding_x_px:.1f}|"
+            f"{glossary_id or ''}"
+        )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def get_cache(self, key: str) -> Optional[Dict[str, Any]]:
@@ -130,11 +149,6 @@ class Database:
         return None
 
     def create_api_key(self, org_id: str) -> Tuple[str, str]:
-        """
-        Generates a new secure live key (pk_live_...)
-        Returns (raw_plaintext_key, key_id).
-        Only the SHA-256 hash is stored in the database.
-        """
         raw_token = secrets.token_hex(20)
         raw_key = f"pk_live_{raw_token}"
         key_id = f"key_{secrets.token_hex(6)}"
@@ -152,10 +166,6 @@ class Database:
 
     # Provision Organization
     def provision_org(self, name: str, email: str, plan: str, quota: int) -> Tuple[str, str]:
-        """
-        Provisions a new organization and generates its initial live API key.
-        Returns (org_id, raw_api_key).
-        """
         org_id = f"org_{secrets.token_hex(6)}"
         with self.get_connection() as conn:
             conn.execute("""
@@ -167,14 +177,21 @@ class Database:
         raw_key, _ = self.create_api_key(org_id)
         return org_id, raw_key
 
-    def record_usage(self, org_id: str, count: int = 1) -> int:
+    # Atomic Quota Check & Reservation (Fixes quota race condition)
+    def check_and_reserve_quota(self, org_id: str, count: int = 1) -> bool:
+        """
+        Atomically increments usage only if usage + count <= monthly_quota.
+        Returns True if quota was reserved, False if quota exceeded.
+        """
         with self.get_connection() as conn:
-            conn.execute("""
-            UPDATE organizations SET usage_count = usage_count + ? WHERE id = ?
-            """, (count, org_id))
+            cursor = conn.cursor()
+            cursor.execute("""
+            UPDATE organizations
+            SET usage_count = usage_count + ?
+            WHERE id = ? AND (usage_count + ?) <= monthly_quota
+            """, (count, org_id, count))
             conn.commit()
-            row = conn.execute("SELECT usage_count FROM organizations WHERE id = ?", (org_id,)).fetchone()
-            return row["usage_count"] if row else count
+            return cursor.rowcount > 0
 
     def get_glossary(self, glossary_id: Optional[str]) -> Optional[Dict[str, str]]:
         if not glossary_id:

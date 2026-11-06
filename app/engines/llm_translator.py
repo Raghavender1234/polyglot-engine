@@ -86,8 +86,8 @@ class LLMTranslator:
                     "You are a layout-aware localization engine. Translate the given UI string into the target locale.\n"
                     "Provide 3 distinct length variants in a single pass:\n"
                     "1. standard: Natural, polite, grammatically complete translation.\n"
-                    "2. compact: Shorter phrasing, dropping redundant auxiliary words/articles while retaining meaning.\n"
-                    "3. ultra_short: Minimalist button action (e.g. single verb or abbreviation) for very tight pixel spaces.\n"
+                    "2. compact: Shorter phrasing, dropping redundant auxiliary words/articles while strictly preserving core meaning and intent.\n"
+                    "3. ultra_short: Minimalist button action verb for tight pixel spaces. CRITICAL: Never invert meaning, drop essential negative words (e.g. 'Cancel' vs 'Confirm'), or omit key nouns.\n"
                     "Preserve all variables, numbers, currency symbols, and technical terms.\n"
                 )
                 if glossary:

@@ -232,6 +232,17 @@
       }
     }
 
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      }[tag] || tag));
+    }
+
     function renderCards(data, uiContext) {
       resultsGrid.innerHTML = '';
       const targetWidth = uiContext.max_width_px;
@@ -262,10 +273,13 @@
         else if (locale.startsWith("ar")) fontClass = "arabic-font";
         else if (locale.startsWith("ja")) fontClass = "jp-font";
 
+        const safeText = escapeHTML(item.ui_safe_text);
+        const rejectedText = overflow ? escapeHTML(overflow.rejected_full_text) : '';
+
         card.innerHTML = `
           <div>
             <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-bold text-slate-300">${locale}</span>
+              <span class="text-xs font-bold text-slate-300">${escapeHTML(locale)}</span>
               <span class="text-xs px-2 py-0.5 rounded font-mono font-bold border ${badgeColor}">
                 ${badgeText}
               </span>
@@ -284,7 +298,7 @@
                     letter-spacing: ${item.css_rules.letter_spacing};
                   "
                 >
-                  ${item.ui_safe_text}
+                  ${safeText}
                 </button>
               </div>
             </div>
@@ -301,7 +315,7 @@
               </div>
               ${overflow ? `
                 <div class="p-2 bg-amber-950/40 border border-amber-900/50 rounded text-xs text-amber-300 mt-2 font-sans">
-                  <strong>Saved Layout:</strong> Full text <em>"${overflow.rejected_full_text}"</em> was <strong>${overflow.rejected_width_px}px</strong> and would have clipped!
+                  <strong>Saved Layout:</strong> Full text <em>"${rejectedText}"</em> was <strong>${overflow.rejected_width_px}px</strong> and would have clipped!
                 </div>
               ` : ''}
             </div>

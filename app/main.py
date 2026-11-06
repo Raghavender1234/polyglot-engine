@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 from typing import Dict, Any, List
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -37,7 +37,6 @@ from .database import db
 from .billing import razorpay_billing, PLANS
 from .auth import get_current_org
 
-# Rate limiter setup
 limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 
 app = FastAPI(
@@ -106,22 +105,37 @@ def localize_endpoint(
 ):
     """
     Main layout-safe localization endpoint:
+    - Atomic quota reservation
+    - Complete cache key lookup (including glossary & padding)
     - 1-pass multi-variant generation
     - HarfBuzz CPU pixel shaping
-    - BiDi Unicode isolate wrapping (\u2066..\u2069)
+    - BiDi Unicode isolate wrapping
     - CSS rule mapping
     """
+    requested_count = len(req.target_locales)
+    
+    # Atomic Quota Reservation (Prevents race conditions)
+    if not db.check_and_reserve_quota(org_id, count=requested_count):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Monthly translation quota exceeded for this API key. Upgrade plan on Razorpay."
+        )
+
     effective_max_width = req.ui_context.max_width_px - req.ui_context.padding_x_px
     glossary = db.get_glossary(req.glossary_id)
     results = {}
 
     for target_locale in req.target_locales:
+        # Cache key includes all variables: source_locale, target_locale, max_width, font_size, font_weight, padding_x, glossary
         cache_key = db.generate_cache_key(
             source_text=req.source_text,
-            locale=target_locale,
+            source_locale=req.source_locale,
+            target_locale=target_locale,
             max_width_px=req.ui_context.max_width_px,
             font_size_px=req.ui_context.font_size_px,
-            font_weight=req.ui_context.font_weight
+            font_weight=req.ui_context.font_weight,
+            padding_x_px=req.ui_context.padding_x_px,
+            glossary_id=req.glossary_id
         )
         cached_result = db.get_cache(cache_key)
         if cached_result:
@@ -210,9 +224,6 @@ def localize_endpoint(
         db.set_cache(cache_key, locale_result.model_dump())
         results[target_locale] = locale_result
 
-    # 6. Record usage for Organization Quota
-    db.record_usage(org_id, count=len(req.target_locales))
-
     return LocalizeResponse(
         source_text=req.source_text,
         results=results
@@ -227,9 +238,6 @@ def get_plans():
 @app.post("/v1/billing/create-order", response_model=CreateOrderResponse)
 @limiter.limit("20/minute")
 def create_order_endpoint(req: CreateOrderRequest, request: Request):
-    """
-    Creates a Razorpay Order so the frontend can display the Razorpay Checkout popup.
-    """
     order = razorpay_billing.create_order(
         plan_id=req.plan_id,
         email=req.email,
@@ -240,18 +248,12 @@ def create_order_endpoint(req: CreateOrderRequest, request: Request):
 @app.post("/v1/billing/verify-payment", response_model=VerifyPaymentResponse)
 @limiter.limit("10/minute")
 def verify_payment_endpoint(req: VerifyPaymentRequest, request: Request):
-    """
-    Verifies payment signature from Razorpay and automatically provisions a live API key.
-    """
-    try:
-        result = razorpay_billing.verify_payment_and_issue_key(
-            order_id=req.razorpay_order_id,
-            payment_id=req.razorpay_payment_id,
-            signature=req.razorpay_signature,
-            plan_id=req.plan_id,
-            email=req.email,
-            name=req.name
-        )
-        return VerifyPaymentResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Payment verification failed: {str(e)}")
+    result = razorpay_billing.verify_payment_and_issue_key(
+        order_id=req.razorpay_order_id,
+        payment_id=req.razorpay_payment_id,
+        signature=req.razorpay_signature,
+        plan_id=req.plan_id,
+        email=req.email,
+        name=req.name
+    )
+    return VerifyPaymentResponse(**result)
