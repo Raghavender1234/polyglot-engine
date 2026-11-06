@@ -1,0 +1,31 @@
+{
+  "name": "@polyglot-engine/react",
+  "version": "1.0.0",
+  "description": "Runtime layout protection and localization SDK for React & Next.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts"
+  },
+  "keywords": [
+    "i18n",
+    "localization",
+    "react",
+    "layout-safe",
+    "bidi",
+    "arabic",
+    "urdu",
+    "overflow-prevention"
+  ],
+  "author": "Polyglot Engine",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "typescript": "^5.4.0"
+  }
+}
