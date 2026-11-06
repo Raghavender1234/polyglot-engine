@@ -43,17 +43,23 @@ export interface LocalizeResult {
   css_rules: CSSRules;
 }
 
+export interface LocalizeOptions {
+  maxWidthPx: number;
+  sourceLocale?: string;
+  fontSizePx?: number;
+  fontWeight?: number;
+  paddingXPx?: number;
+  elementType?: string;
+  signal?: AbortSignal;
+}
+
 interface PolyglotContextType {
   config: PolyglotConfig;
   cache: Map<string, LocalizeResult>;
   localizeText: (
     sourceText: string,
     targetLocale: string,
-    sourceLocale: string,
-    maxWidthPx: number,
-    fontSizePx?: number,
-    fontWeight?: number,
-    signal?: AbortSignal
+    options: LocalizeOptions
   ) => Promise<LocalizeResult>;
 }
 
@@ -76,33 +82,36 @@ export function PolyglotProvider({
     async (
       sourceText: string,
       targetLocale: string,
-      sourceLocale: string = defaultLocale,
-      maxWidthPx: number,
-      fontSizePx: number = 14,
-      fontWeight: number = 400,
-      signal?: AbortSignal
+      options: LocalizeOptions
     ): Promise<LocalizeResult> => {
-      const cacheKey = `${sourceText}|${sourceLocale}|${targetLocale}|${Math.round(maxWidthPx)}|${fontSizePx}|${fontWeight}`;
+      const srcLoc = options.sourceLocale || defaultLocale;
+      const fontSize = options.fontSizePx || 14;
+      const weight = options.fontWeight || 400;
+      const paddingX = options.paddingXPx || 0;
+      const elemType = options.elementType || 'button';
+
+      const cacheKey = `${sourceText}|${srcLoc}|${targetLocale}|${Math.round(options.maxWidthPx)}|${fontSize}|${weight}|${paddingX}`;
       if (cache.has(cacheKey)) {
         return cache.get(cacheKey)!;
       }
 
       const res = await fetch(`${apiUrl.replace(/\/$/, '')}/v1/localize`, {
         method: 'POST',
-        signal,
+        signal: options.signal,
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'X-API-Key': apiKey } : {})
         },
         body: JSON.stringify({
           source_text: sourceText,
-          source_locale: sourceLocale,
+          source_locale: srcLoc,
           target_locales: [targetLocale],
           ui_context: {
-            element_type: 'button',
-            max_width_px: Math.max(maxWidthPx, 30),
-            font_size_px: fontSizePx,
-            font_weight: fontWeight
+            element_type: elemType,
+            max_width_px: Math.max(options.maxWidthPx, 30),
+            font_size_px: fontSize,
+            font_weight: weight,
+            padding_x_px: paddingX
           }
         })
       });
@@ -134,6 +143,8 @@ export function usePolyglot(
     maxWidthPx?: number;
     fontSizePx?: number;
     fontWeight?: number;
+    paddingXPx?: number;
+    elementType?: string;
   } = {}
 ) {
   const context = useContext(PolyglotContext);
@@ -143,8 +154,9 @@ export function usePolyglot(
 
   const containerRef = useRef<HTMLElement | null>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(options.maxWidthPx || null);
+  const [measuredPaddingX, setMeasuredPaddingX] = useState<number>(options.paddingXPx || 0);
 
-  // ResizeObserver: monitors parent element width dynamically
+  // Accurate content box measurement
   useEffect(() => {
     if (options.maxWidthPx) {
       setMeasuredWidth(options.maxWidthPx);
@@ -152,32 +164,56 @@ export function usePolyglot(
     }
 
     const node = containerRef.current;
-    if (!node || typeof window === 'undefined' || !('ResizeObserver' in window)) {
+    if (!node || typeof window === 'undefined') {
       return;
     }
 
-    const targetToObserve = node.parentElement || node;
+    function calculateBox() {
+      if (!node) return;
+      const computed = window.getComputedStyle(node);
+      const padLeft = parseFloat(computed.paddingLeft) || 0;
+      const padRight = parseFloat(computed.paddingRight) || 0;
+      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+      const borderRight = parseFloat(computed.borderRightWidth) || 0;
+      const totalPadding = padLeft + padRight + borderLeft + borderRight;
+      setMeasuredPaddingX(totalPadding);
 
-    let debounceTimer: ReturnType<typeof setTimeout>;
+      // Check if element has its own explicit width / max-width
+      const explicitWidth = parseFloat(computed.width);
+      const explicitMaxWidth = parseFloat(computed.maxWidth);
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          const width = entry.contentRect.width;
-          if (width > 0) {
-            setMeasuredWidth(width);
-          }
-        }, 80);
+      if (!isNaN(explicitMaxWidth) && explicitMaxWidth > 0) {
+        setMeasuredWidth(explicitMaxWidth);
+      } else if (!isNaN(explicitWidth) && explicitWidth > 0 && computed.display !== 'inline') {
+        setMeasuredWidth(explicitWidth);
+      } else if (node.parentElement) {
+        // Fallback to parent available width
+        const parentComputed = window.getComputedStyle(node.parentElement);
+        const parentPad = (parseFloat(parentComputed.paddingLeft) || 0) + (parseFloat(parentComputed.paddingRight) || 0);
+        const parentWidth = node.parentElement.clientWidth - parentPad;
+        if (parentWidth > 0) {
+          setMeasuredWidth(parentWidth);
+        }
       }
-    });
+    }
 
-    observer.observe(targetToObserve);
+    calculateBox();
 
-    return () => {
-      clearTimeout(debounceTimer);
-      observer.disconnect();
-    };
+    if ('ResizeObserver' in window) {
+      let debounceTimer: ReturnType<typeof setTimeout>;
+      const observer = new ResizeObserver(() => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(calculateBox, 80);
+      });
+
+      observer.observe(node);
+      if (node.parentElement) observer.observe(node.parentElement);
+
+      return () => {
+        clearTimeout(debounceTimer);
+        observer.disconnect();
+      };
+    }
   }, [options.maxWidthPx]);
 
   useEffect(() => {
@@ -191,16 +227,18 @@ export function usePolyglot(
 
       try {
         const effectiveWidth = measuredWidth && measuredWidth > 0 ? measuredWidth : 145;
-        const srcLoc = options.sourceLocale || context.config.defaultLocale || 'en-US';
-
         const res = await context.localizeText(
           sourceText,
           targetLocale,
-          srcLoc,
-          effectiveWidth,
-          options.fontSizePx || 14,
-          options.fontWeight || 400,
-          abortController.signal
+          {
+            maxWidthPx: effectiveWidth,
+            sourceLocale: options.sourceLocale,
+            fontSizePx: options.fontSizePx || 14,
+            fontWeight: options.fontWeight || 400,
+            paddingXPx: options.paddingXPx !== undefined ? options.paddingXPx : measuredPaddingX,
+            elementType: options.elementType || 'button',
+            signal: abortController.signal
+          }
         );
 
         if (isMounted) {
@@ -223,7 +261,7 @@ export function usePolyglot(
       isMounted = false;
       abortController.abort();
     };
-  }, [context, sourceText, targetLocale, measuredWidth, options.sourceLocale, options.fontSizePx, options.fontWeight]);
+  }, [context, sourceText, targetLocale, measuredWidth, measuredPaddingX, options.sourceLocale, options.fontSizePx, options.fontWeight, options.paddingXPx, options.elementType]);
 
   return { result, loading, error, containerRef, measuredWidth };
 }
@@ -235,6 +273,7 @@ export interface SmartTextProps extends HTMLAttributes<HTMLSpanElement> {
   maxWidthPx?: number;
   fontSizePx?: number;
   fontWeight?: number;
+  paddingXPx?: number;
   children?: ReactNode;
 }
 
@@ -245,6 +284,7 @@ export function SmartText({
   maxWidthPx,
   fontSizePx = 14,
   fontWeight = 400,
+  paddingXPx,
   style,
   className,
   children,
@@ -256,7 +296,9 @@ export function SmartText({
     sourceLocale,
     maxWidthPx,
     fontSizePx,
-    fontWeight
+    fontWeight,
+    paddingXPx,
+    elementType: 'text'
   });
 
   const displayText = result ? result.ui_safe_text : (sourceText || children);
@@ -288,6 +330,7 @@ export interface SmartButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   maxWidthPx?: number;
   fontSizePx?: number;
   fontWeight?: number;
+  paddingXPx?: number;
   children?: ReactNode;
 }
 
@@ -298,6 +341,7 @@ export function SmartButton({
   maxWidthPx,
   fontSizePx = 14,
   fontWeight = 600,
+  paddingXPx,
   style,
   className,
   children,
@@ -309,10 +353,11 @@ export function SmartButton({
     sourceLocale,
     maxWidthPx,
     fontSizePx,
-    fontWeight
+    fontWeight,
+    paddingXPx,
+    elementType: 'button'
   });
 
-  // Preserve child elements (e.g., icons) if children is non-string or compound
   let contentToRender: ReactNode = resolvedText;
   if (result) {
     if (typeof children === 'string' || !children) {

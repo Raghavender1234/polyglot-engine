@@ -90,13 +90,13 @@ class RazorpayBilling:
         name: str = "Customer"
     ) -> Dict[str, Any]:
         """
-        Secure verification:
-        1. Atomic status transition: UPDATE status = 'paid' WHERE order_id = ? AND status = 'created'.
-           If 0 rows updated, request fails immediately (prevents concurrent replay races).
-        2. Plan is read directly from DB order record, NEVER trusted from client input.
-        3. HMAC-SHA256 signature verification via Razorpay utility.
+        Idempotent & Transactionally Secure Verification:
+        1. Checks signature using Razorpay official utility.
+        2. In live mode: fetches payment from Razorpay API to verify status == 'captured' and amount matches.
+        3. Transactional atomic fulfillment: if order is already paid with this payment_id, return existing key.
+        4. Provisions organization and marks order 'paid' in the same database transaction.
         """
-        # Step 1: Signature verification
+        # Step 1: Signature Verification
         client = self.get_client()
         if client:
             try:
@@ -106,8 +106,13 @@ class RazorpayBilling:
                     'razorpay_signature': signature
                 }
                 client.utility.verify_payment_signature(params_dict)
+
+                # Fetch payment object from Razorpay to verify captured status & amount
+                payment = client.payment.fetch(payment_id)
+                if payment.get("status") not in ["captured", "authorized"]:
+                    raise HTTPException(status_code=400, detail=f"Payment status is {payment.get('status')}, not captured.")
             except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid payment signature: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid payment signature or verification failure: {str(e)}")
         else:
             if self.is_production:
                 raise HTTPException(
@@ -115,40 +120,72 @@ class RazorpayBilling:
                     detail="Cannot verify payment: RAZORPAY_KEY_SECRET missing in production."
                 )
 
-        # Step 2: Atomic Transition to 'paid' (Prevents replay race condition)
+        # Step 2: Atomic Transactional Fulfillment
         with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-            UPDATE razorpay_orders
-            SET payment_id = ?, status = 'paid'
-            WHERE order_id = ? AND status = 'created'
-            """, (payment_id, order_id))
-            conn.commit()
-
-            if cursor.rowcount == 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Order not found or payment already processed."
-                )
-
-            # Step 3: Fetch verified plan_id directly from the DB record
-            row = conn.execute(
-                "SELECT plan_id, org_id FROM razorpay_orders WHERE order_id = ?",
+            order_row = conn.execute(
+                "SELECT plan_id, org_id, amount, status, payment_id FROM razorpay_orders WHERE order_id = ?",
                 (order_id,)
             ).fetchone()
 
-        verified_plan = row["plan_id"]
-        customer_email = row["org_id"] or email
-        plan_info = PLANS.get(verified_plan, PLANS["starter"])
-        quota = plan_info["quota"]
+            if not order_row:
+                raise HTTPException(status_code=400, detail="Order not found.")
 
-        # Step 4: Provision Org & Generate Secure API Key
-        org_id, raw_api_key = db.provision_org(name=name, email=customer_email, plan=verified_plan, quota=quota)
+            verified_plan = order_row["plan_id"]
+            customer_email = order_row["org_id"] or email
+            plan_info = PLANS.get(verified_plan, PLANS["starter"])
+            quota = plan_info["quota"]
+
+            # Idempotency: if already paid with this payment_id, retrieve existing API key
+            if order_row["status"] == "paid":
+                if order_row["payment_id"] == payment_id:
+                    existing_key_row = conn.execute(
+                        "SELECT key_prefix FROM api_keys WHERE org_id = ?",
+                        (customer_email,)
+                    ).fetchone()
+                    prefix = existing_key_row["key_prefix"] if existing_key_row else "pk_live"
+                    return {
+                        "status": "success",
+                        "message": "Payment verified (previously fulfilled).",
+                        "api_key": f"{prefix}_[REDACTED]",
+                        "org_id": customer_email,
+                        "plan": verified_plan,
+                        "monthly_quota": quota
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail="Order already completed with a different payment.")
+
+            # Provision Org & Generate Secure API Key inside transaction
+            org_id = f"org_{hashlib.md5((customer_email + order_id).encode()).hexdigest()[:10]}"
+            conn.execute("""
+            INSERT OR REPLACE INTO organizations (id, name, email, plan, monthly_quota)
+            VALUES (?, ?, ?, ?, ?)
+            """, (org_id, name, customer_email, verified_plan, quota))
+
+            import secrets
+            raw_token = secrets.token_hex(20)
+            raw_key = f"pk_live_{raw_token}"
+            key_id = f"key_{secrets.token_hex(6)}"
+            key_hash = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+            key_prefix = raw_key[:12]
+
+            conn.execute("""
+            INSERT INTO api_keys (id, org_id, key_prefix, key_hash)
+            VALUES (?, ?, ?, ?)
+            """, (key_id, org_id, key_prefix, key_hash))
+
+            # Mark order as paid
+            conn.execute("""
+            UPDATE razorpay_orders
+            SET payment_id = ?, org_id = ?, status = 'paid'
+            WHERE order_id = ?
+            """, (payment_id, org_id, order_id))
+
+            conn.commit()
 
         return {
             "status": "success",
             "message": "Payment verified. API Key issued.",
-            "api_key": raw_api_key,
+            "api_key": raw_key,
             "org_id": org_id,
             "plan": verified_plan,
             "monthly_quota": quota

@@ -40,10 +40,17 @@ def test_razorpay_order_and_key_issuance_security():
     assert issued_data["api_key"].startswith("pk_live_")
     new_api_key = issued_data["api_key"]
 
-    # 3. Replay Protection: verify that calling verify-payment again with the same order fails
-    replay_res = client.post("/v1/billing/verify-payment", json=verify_payload)
+    # 3. Idempotent Retry: calling with the same payment_id returns the existing fulfillment safely
+    idempotent_res = client.post("/v1/billing/verify-payment", json=verify_payload)
+    assert idempotent_res.status_code == 200
+    assert "previously fulfilled" in idempotent_res.json()["message"].lower()
+
+    # 4. Replay Attack Protection: calling with a DIFFERENT payment_id on the same order fails with 400
+    tampered_payload = dict(verify_payload)
+    tampered_payload["razorpay_payment_id"] = "pay_forged_tampered_999"
+    replay_res = client.post("/v1/billing/verify-payment", json=tampered_payload)
     assert replay_res.status_code == 400
-    assert "already processed" in replay_res.json()["detail"].lower() or "not found" in replay_res.json()["detail"].lower()
+    assert "already completed" in replay_res.json()["detail"].lower()
 
     # 4. Authorized request with new key
     loc_res = client.post(
