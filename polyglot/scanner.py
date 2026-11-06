@@ -49,11 +49,40 @@ JS_DISCOVER_ELEMENTS = """
         const role = el.getAttribute('role');
         if (role) return `${el.tagName.toLowerCase()}[role="${role}"]`;
 
-        // Semantic class or tag hierarchy
+        // Semantic class
         if (el.className && typeof el.className === 'string') {
-            const classes = el.className.split(' ').filter(c => c.length > 2 && !c.startsWith('css-'));
-            if (classes.length > 0) return `.${classes[0]}`;
+            const classes = el.className.trim().split(/\\s+/).filter(c => c.length > 2 && !c.startsWith('css-'));
+            if (classes.length > 0) {
+                // Check if class is unique on page
+                if (document.querySelectorAll('.' + classes[0]).length === 1) {
+                    return `.${classes[0]}`;
+                }
+                const compound = classes.slice(0, 2).join('.');
+                if (document.querySelectorAll('.' + compound).length === 1) {
+                    return `.${compound}`;
+                }
+            }
         }
+
+        // Hierarchical scoped selector (parent + tag + nth-of-type)
+        const parent = el.parentElement;
+        if (parent) {
+            let parentSel = parent.id ? '#' + parent.id :
+                (parent.getAttribute('data-testid') ? `[data-testid="${parent.getAttribute('data-testid')}"]` : null);
+
+            if (!parentSel && parent.className && typeof parent.className === 'string') {
+                const pClasses = parent.className.trim().split(/\\s+/).filter(c => c.length > 2 && !c.startsWith('css-'));
+                if (pClasses.length > 0) parentSel = `.${pClasses[0]}`;
+            }
+
+            if (!parentSel) parentSel = parent.tagName.toLowerCase();
+
+            const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+            const index = siblings.indexOf(el) + 1;
+            const tag = el.tagName.toLowerCase();
+            return siblings.length > 1 ? `${parentSel} > ${tag}:nth-of-type(${index})` : `${parentSel} > ${tag}`;
+        }
+
         return el.tagName.toLowerCase();
     }
 
@@ -70,7 +99,7 @@ JS_DISCOVER_ELEMENTS = """
     const discovered = [];
     const seenTextNodes = new Set();
     const candidates = document.querySelectorAll(
-        'button, a, [role="button"], [role="tab"], .btn, nav a, h1, h2, h3, h4, label, [data-testid*="button"], [data-testid*="menu"], [data-testid*="nav"]'
+        'button, a, [role="button"], [role="tab"], .btn, nav a, h1, h2, h3, h4, label, [class*="price"], [class*="tag"], [class*="badge"], [class*="item"], [data-testid*="button"], [data-testid*="menu"], [data-testid*="nav"], p, span[class]'
     );
 
     let assignedId = 0;

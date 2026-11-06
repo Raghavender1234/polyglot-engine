@@ -1,23 +1,35 @@
 """
 Polyglot Patcher — Dynamic CSS Generation & Source Repository Patching
-Generates targeted, calculated CSS rules based on diagnosed element geometry (never hardcoded).
-When a local repository path is provided, locates the actual source file and produces a verified Git diff.
+Generates targeted, calculated CSS rules based on diagnosed element geometry.
+Enforces safety rules to prevent modifying broad generic HTML selectors.
+When a local repository path is provided, locates the actual source file,
+modifies the stylesheet in memory, produces a genuine unified Git diff,
+and validates it via `git apply --check`.
 """
 
 import os
 import re
+import difflib
+import subprocess
 from typing import Dict, Any, List, Optional
+
+UNSAFE_GENERIC_SELECTORS = {
+    "button", "a", "div", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6",
+    "label", "input", "body", "html", "header", "nav", "aside", "table", "tr", "td", "th"
+}
 
 class DynamicCSSPatcher:
     @staticmethod
     def generate_css(diagnosed_issues: List[Dict[str, Any]]) -> str:
         """
         Dynamically calculates targeted CSS rules derived directly from failing element geometry.
+        Strictly rejects generic HTML tags to prevent cross-component layout damage.
         """
         rules = {}
         for issue in diagnosed_issues:
-            sel = issue.get("selector")
-            if not sel or sel in ("div", "span", "body", "html"):
+            sel = issue.get("selector", "").strip()
+            if not sel or sel.lower() in UNSAFE_GENERIC_SELECTORS:
+                # Refuse unsafe bare tags
                 continue
 
             cat = issue.get("category", "")
@@ -65,58 +77,116 @@ class DynamicCSSPatcher:
 
 class GitDiffPatcher:
     @staticmethod
-    def generate_patch(repo_path: Optional[str], css_rules: Dict[str, List[str]]) -> Optional[str]:
+    def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> str:
         """
-        If repo_path is provided, searches local source files for the matching selector
-        and produces a genuine unified Git diff patch.
-        If no repo_path is provided, returns None (refuses to fabricate fake diffs).
+        Locates the CSS rule block for selector and injects/updates declarations before closing brace.
+        If selector block is not found, appends the new rule block cleanly.
         """
-        if not repo_path or not os.path.exists(repo_path):
+        clean_sel = selector.strip()
+        pattern = re.compile(
+            r"(^|\n)([ \t]*" + re.escape(clean_sel) + r"[^{]*\{)([^}]*)(\})",
+            re.MULTILINE
+        )
+
+        match = pattern.search(content)
+        if match:
+            prefix = match.group(1)
+            header = match.group(2)
+            body = match.group(3)
+            closing = match.group(4)
+
+            # Insert missing declarations
+            existing_body = body.rstrip()
+            indent = "  "
+            new_decls = "\n".join(f"{indent}{d}" for d in declarations if d.strip() not in existing_body)
+            if new_decls:
+                updated_body = f"{existing_body}\n{new_decls}\n"
+            else:
+                updated_body = body
+
+            return content[:match.start()] + prefix + header + updated_body + closing + content[match.end():]
+        else:
+            # Append new rule block
+            new_block = f"\n\n{clean_sel} {{\n" + "\n".join(f"  {d}" for d in declarations) + "\n}\n"
+            return content.rstrip() + new_block
+
+    @classmethod
+    def generate_patch(cls, repo_path: Optional[str], css_rules: Dict[str, List[str]]) -> Optional[str]:
+        """
+        Searches local source files for the matching selector, modifies in memory,
+        and produces a genuine unified Git diff patch with exact line numbers.
+        Validates the patch using git apply --check when in a git repo.
+        """
+        if not repo_path or not os.path.exists(repo_path) or not css_rules:
             return None
 
-        # Search for real CSS/SCSS/JSX files in the repo matching selectors
-        modified_files = {}
+        # Filter unsafe generic selectors
+        safe_rules = {s: d for s, d in css_rules.items() if s.strip().lower() not in UNSAFE_GENERIC_SELECTORS}
+        if not safe_rules:
+            return None
+
+        all_diffs = []
+
+        # Find matching stylesheet files
         for root, _, files in os.walk(repo_path):
+            if any(part in root for part in [".git", "node_modules", ".venv", "__pycache__"]):
+                continue
+
             for file in files:
-                if file.endswith((".css", ".scss", ".module.css", ".tsx", ".jsx")):
+                if file.endswith((".css", ".scss", ".module.css", ".html")):
                     fpath = os.path.join(root, file)
+                    rel_path = os.path.relpath(fpath, repo_path).replace("\\", "/")
+
                     try:
                         with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                            content = f.read()
+                            orig_content = f.read()
 
-                        for sel, declarations in css_rules.items():
+                        modified_content = orig_content
+                        file_touched = False
+
+                        for sel, decls in safe_rules.items():
                             clean_sel = sel.lstrip(".#")
-                            if clean_sel in content:
-                                rel_path = os.path.relpath(fpath, repo_path).replace("\\", "/")
-                                if rel_path not in modified_files:
-                                    modified_files[rel_path] = []
-                                modified_files[rel_path].append((sel, declarations))
-                    except Exception:
-                        pass
+                            # If selector or class exists in file
+                            if clean_sel in orig_content or sel in orig_content:
+                                modified_content = cls.apply_modifications_to_css(modified_content, sel, decls)
+                                file_touched = True
 
-        if not modified_files:
+                        if file_touched and modified_content != orig_content:
+                            orig_lines = orig_content.splitlines(keepends=True)
+                            mod_lines = modified_content.splitlines(keepends=True)
+
+                            unified = list(difflib.unified_diff(
+                                orig_lines,
+                                mod_lines,
+                                fromfile=f"a/{rel_path}",
+                                tofile=f"b/{rel_path}"
+                            ))
+
+                            if unified:
+                                diff_header = f"diff --git a/{rel_path} b/{rel_path}\n"
+                                all_diffs.append(diff_header + "".join(unified))
+                    except Exception as e:
+                        print(f"⚠️ GitDiffPatcher error processing {fpath}: {e}")
+
+        if not all_diffs:
             return None
 
-        diff_lines = [
-            "From: Polyglot Engine <engine@polyglot.ai>",
-            "Subject: [PATCH] fix(i18n): adapt layout constraints for multilingual expansion",
-            "---"
-        ]
+        full_patch = "".join(all_diffs)
 
-        for rel_path, changes in modified_files.items():
-            diff_lines.append(f" {rel_path} | 4 ++++")
-        diff_lines.append(f" {len(modified_files)} files changed\n")
+        # Validate with git apply --check if repo is a git repository
+        is_git_repo = os.path.exists(os.path.join(repo_path, ".git"))
+        if is_git_repo:
+            try:
+                proc = subprocess.run(
+                    ["git", "apply", "--check", "--ignore-whitespace"],
+                    input=full_patch,
+                    text=True,
+                    cwd=repo_path,
+                    capture_output=True
+                )
+                if proc.returncode != 0:
+                    print(f"⚠️ Warning: git apply --check reported: {proc.stderr.strip()}")
+            except Exception:
+                pass
 
-        for rel_path, changes in modified_files.items():
-            diff_lines.append(f"diff --git a/{rel_path} b/{rel_path}")
-            diff_lines.append(f"--- a/{rel_path}")
-            diff_lines.append(f"+++ b/{rel_path}")
-            diff_lines.append("@@ -1,3 +1,7 @@")
-            for sel, decls in changes:
-                diff_lines.append(f"+{sel} {{")
-                for d in decls:
-                    diff_lines.append(f"+  {d}")
-                diff_lines.append("+}")
-
-        diff_lines.append("-- \n2.42.0\n")
-        return "\n".join(diff_lines)
+        return full_patch

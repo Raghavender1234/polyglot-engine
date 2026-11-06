@@ -6,4 +6,5 @@ __pycache__/
 .pytest_cache/
 .env
 polyglot.db
-locales/
+locales/*
+!locales/en.json

@@ -1,10 +1,9 @@
 """
 Polyglot Repair — Multi-Candidate Backtracking & Closed-Loop Repair Engine
-Executes a multi-candidate search loop:
-  Candidate 1: standard
-  Candidate 2: compact (if Candidate 1 overflows/collides)
-  Candidate 3: ultra_short (if Candidate 2 overflows/collides)
-  Candidate 4: targeted dynamic CSS injection (if text reduction cannot resolve without semantic loss)
+Executes configurable repair strategies:
+  - "auto": Try candidate backtracking (compact -> ultra_short) first; if rigid layout failures persist, apply dynamic CSS layout repair.
+  - "text-only": Only backtrack across linguistic length variants (no CSS overrides).
+  - "css-only": Keep standard translations; resolve overflows and collisions exclusively via targeted CSS adjustments.
 """
 
 from typing import Dict, Any, List, Tuple
@@ -73,16 +72,26 @@ JS_INJECT_CSS_PATCH = """
 """
 
 class RepairOrchestrator:
-    def __init__(self, page, target_elements: List[Dict[str, Any]], candidates_map: Dict[str, Dict[str, Any]], locale: str):
+    def __init__(
+        self,
+        page,
+        target_elements: List[Dict[str, Any]],
+        candidates_map: Dict[str, Dict[str, Any]],
+        locale: str,
+        strategy: str = "auto",
+        verify: bool = True
+    ):
         self.page = page
         self.elements = target_elements
         self.candidates = candidates_map
         self.locale = locale
+        self.strategy = strategy.lower().strip()  # "auto", "css-only", "text-only"
+        self.verify = verify
         self.target_ids = [el["id"] for el in target_elements]
 
     def execute_closed_loop_repair(self) -> Dict[str, Any]:
         """
-        Executes real backtracking across length variants, then applies targeted dynamic CSS if needed.
+        Executes strategy-directed repair across translation candidates and dynamic CSS patches.
         """
         # Pass 1: Apply 'standard' translations
         pass1_payload = []
@@ -108,10 +117,11 @@ class RepairOrchestrator:
         chosen_variants = {el["id"]: "standard" for el in self.elements}
         active_texts = {el["id"]: self.candidates.get(el["id"], {}).get("standard", el["text"]) for el in self.elements}
 
-        # Pass 2: Backtrack to 'compact' for failing elements
-        if failing_ids:
+        # Linguistic variant backtracking (allowed in "auto" and "text-only")
+        if self.strategy in ("auto", "text-only") and failing_ids:
+            # Pass 2: Backtrack to 'compact' for failing elements
             pass2_payload = []
-            for el_id in failing_ids:
+            for el_id in list(failing_ids):
                 cand = self.candidates.get(el_id, {})
                 compact_text = cand.get("compact")
                 if compact_text and compact_text != active_texts[el_id]:
@@ -128,62 +138,70 @@ class RepairOrchestrator:
                 metrics_pass2 = CollisionDetector.detect(self.page, self.target_ids)
                 failing_ids = set([o["id"] for o in metrics_pass2["overflows"]] + [c["translatedId"] for c in metrics_pass2["collisions"]])
 
-        # Pass 3: Backtrack to 'ultra_short' for still-failing elements
-        if failing_ids:
-            pass3_payload = []
-            for el_id in failing_ids:
-                cand = self.candidates.get(el_id, {})
-                ultra_text = cand.get("ultra_short")
-                if ultra_text and ultra_text != active_texts[el_id]:
-                    active_texts[el_id] = ultra_text
-                    chosen_variants[el_id] = "ultra_short"
-                    pass3_payload.append({
-                        "id": el_id,
-                        "text": ultra_text,
-                        "dir": cand.get("dir", "")
-                    })
+            # Pass 3: Backtrack to 'ultra_short' for still-failing elements
+            if failing_ids:
+                pass3_payload = []
+                for el_id in list(failing_ids):
+                    cand = self.candidates.get(el_id, {})
+                    ultra_text = cand.get("ultra_short")
+                    if ultra_text and ultra_text != active_texts[el_id]:
+                        active_texts[el_id] = ultra_text
+                        chosen_variants[el_id] = "ultra_short"
+                        pass3_payload.append({
+                            "id": el_id,
+                            "text": ultra_text,
+                            "dir": cand.get("dir", "")
+                        })
 
-            if pass3_payload:
-                self.page.evaluate(JS_APPLY_BATCH_TEXT, pass3_payload)
-                metrics_pass3 = CollisionDetector.detect(self.page, self.target_ids)
-                failing_ids = set([o["id"] for o in metrics_pass3["overflows"]] + [c["translatedId"] for c in metrics_pass3["collisions"]])
+                if pass3_payload:
+                    self.page.evaluate(JS_APPLY_BATCH_TEXT, pass3_payload)
+                    metrics_pass3 = CollisionDetector.detect(self.page, self.target_ids)
+                    failing_ids = set([o["id"] for o in metrics_pass3["overflows"]] + [c["translatedId"] for c in metrics_pass3["collisions"]])
 
-        # Pass 4: Dynamic Targeted CSS Repair for remaining rigid layout failures
+        # Dynamic CSS injection (allowed in "auto" and "css-only")
         diagnosed_issues = []
         applied_css = ""
 
-        if failing_ids:
+        if self.strategy in ("auto", "css-only") and failing_ids:
             el_map = {el["id"]: el for el in self.elements}
-            final_check = CollisionDetector.detect(self.page, self.target_ids)
+            fresh_check = CollisionDetector.detect(self.page, self.target_ids)
 
-            for ovf in final_check["overflows"]:
-                el = el_map.get(ovf["id"])
-                if el:
-                    diag = RootCauseDiagnoser.diagnose_overflow(el, ovf["overflowPx"], self.locale)
-                    diag["selector"] = el.get("selector", "")
-                    diag["current_width"] = el.get("contentWidth", 60.0)
-                    diag["overflow_px"] = ovf["overflowPx"]
-                    diagnosed_issues.append(diag)
+            for ovf in fresh_check["overflows"]:
+                el = el_map.get(ovf["id"], {})
+                # Merge fresh browser measurements
+                merged_el = {**el, **ovf}
+                diag = RootCauseDiagnoser.diagnose_overflow(merged_el, ovf["overflowPx"], self.locale)
+                diag["id"] = ovf["id"]
+                diag["selector"] = ovf["selector"]
+                diag["current_width"] = ovf.get("computedWidth", el.get("contentWidth", 60.0))
+                diag["overflow_px"] = ovf["overflowPx"]
+                diagnosed_issues.append(diag)
 
-            for col in final_check["collisions"]:
-                el = el_map.get(col["translatedId"])
-                if el:
-                    diag = RootCauseDiagnoser.diagnose_collision(col, el, {})
-                    diag["selector"] = el.get("selector", "")
-                    diag["current_width"] = el.get("contentWidth", 60.0)
-                    diag["overflow_px"] = col["overlapX"]
-                    diagnosed_issues.append(diag)
+            for col in fresh_check["collisions"]:
+                el = el_map.get(col["translatedId"], {})
+                merged_el = {**el, **col}
+                diag = RootCauseDiagnoser.diagnose_collision(col, merged_el, {})
+                diag["id"] = col["translatedId"]
+                diag["selector"] = col["selector1"]
+                diag["current_width"] = el.get("contentWidth", 60.0)
+                diag["overflow_px"] = col["overlapX"]
+                diagnosed_issues.append(diag)
 
             if diagnosed_issues:
                 applied_css = DynamicCSSPatcher.generate_css(diagnosed_issues)
                 self.page.evaluate(JS_INJECT_CSS_PATCH, applied_css)
 
-        # Final Verification
-        final_metrics = CollisionDetector.detect(self.page, self.target_ids)
-        final_overflows = final_metrics["overflowCount"]
-        final_collisions = final_metrics["collisionCount"]
+        # Verification step
+        if self.verify:
+            final_metrics = CollisionDetector.detect(self.page, self.target_ids)
+            final_overflows = final_metrics["overflowCount"]
+            final_collisions = final_metrics["collisionCount"]
+        else:
+            final_overflows = len(failing_ids)
+            final_collisions = 0
 
         return {
+            "strategy": self.strategy,
             "initial_overflows": initial_overflows,
             "initial_collisions": initial_collisions,
             "final_overflows": final_overflows,
