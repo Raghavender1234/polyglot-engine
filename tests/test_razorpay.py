@@ -43,7 +43,12 @@ def test_razorpay_order_and_key_issuance_security():
     # 3. Idempotent Retry: calling with the same payment_id returns the existing fulfillment safely
     idempotent_res = client.post("/v1/billing/verify-payment", json=verify_payload)
     assert idempotent_res.status_code == 200
-    assert "previously fulfilled" in idempotent_res.json()["message"].lower()
+    idempotent_data = idempotent_res.json()
+    assert "previously fulfilled" in idempotent_data["message"].lower()
+    assert idempotent_data["org_id"] == issued_data["org_id"]
+    assert idempotent_data["plan"] == "growth"
+    assert idempotent_data["monthly_quota"] == 50000
+    assert idempotent_data["api_key"].startswith("pk_live_")
 
     # 4. Replay Attack Protection: calling with a DIFFERENT payment_id on the same order fails with 400
     tampered_payload = dict(verify_payload)

@@ -91,63 +91,83 @@ class RazorpayBilling:
     ) -> Dict[str, Any]:
         """
         Idempotent & Transactionally Secure Verification:
-        1. Checks signature using Razorpay official utility.
-        2. In live mode: fetches payment from Razorpay API to verify status == 'captured' and amount matches.
+        1. Checks order existence and amount/currency in database.
+        2. In live mode: checks signature and verifies status == 'captured' and exact amount/currency match.
         3. Transactional atomic fulfillment: if order is already paid with this payment_id, return existing key.
         4. Provisions organization and marks order 'paid' in the same database transaction.
         """
-        # Step 1: Signature Verification
-        client = self.get_client()
-        if client:
-            try:
-                params_dict = {
-                    'razorpay_order_id': order_id,
-                    'razorpay_payment_id': payment_id,
-                    'razorpay_signature': signature
-                }
-                client.utility.verify_payment_signature(params_dict)
-
-                # Fetch payment object from Razorpay to verify captured status & amount
-                payment = client.payment.fetch(payment_id)
-                if payment.get("status") not in ["captured", "authorized"]:
-                    raise HTTPException(status_code=400, detail=f"Payment status is {payment.get('status')}, not captured.")
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid payment signature or verification failure: {str(e)}")
-        else:
-            if self.is_production:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Cannot verify payment: RAZORPAY_KEY_SECRET missing in production."
-                )
-
-        # Step 2: Atomic Transactional Fulfillment
         with db.get_connection() as conn:
             order_row = conn.execute(
-                "SELECT plan_id, org_id, amount, status, payment_id FROM razorpay_orders WHERE order_id = ?",
+                "SELECT plan_id, org_id, amount, currency, status, payment_id FROM razorpay_orders WHERE order_id = ?",
                 (order_id,)
             ).fetchone()
 
             if not order_row:
                 raise HTTPException(status_code=400, detail="Order not found.")
 
+            # Step 1: Signature Verification & Gateway Amount/Status Audit
+            client = self.get_client()
+            if client:
+                try:
+                    params_dict = {
+                        'razorpay_order_id': order_id,
+                        'razorpay_payment_id': payment_id,
+                        'razorpay_signature': signature
+                    }
+                    client.utility.verify_payment_signature(params_dict)
+
+                    # Fetch payment object from Razorpay to verify captured status & exact amount
+                    payment = client.payment.fetch(payment_id)
+                    required_status = ["captured"] if self.is_production else ["captured", "authorized"]
+                    if payment.get("status") not in required_status:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Payment status is '{payment.get('status')}'; expected 'captured'."
+                        )
+
+                    # Strict amount check: paid amount must match stored order amount exactly
+                    if payment.get("amount") != order_row["amount"]:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Payment amount mismatch: expected {order_row['amount']} paise, received {payment.get('amount')} paise."
+                        )
+
+                    if payment.get("currency") != (order_row["currency"] or "INR"):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Payment currency mismatch: expected {order_row['currency']}, received {payment.get('currency')}."
+                        )
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid payment signature or verification failure: {str(e)}")
+            else:
+                if self.is_production:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Cannot verify payment: RAZORPAY_KEY_SECRET missing in production."
+                    )
+
+            # Step 2: Atomic Transactional Fulfillment & Idempotency
             verified_plan = order_row["plan_id"]
-            customer_email = order_row["org_id"] or email
+            stored_org_or_email = order_row["org_id"] or email
             plan_info = PLANS.get(verified_plan, PLANS["starter"])
             quota = plan_info["quota"]
 
-            # Idempotency: if already paid with this payment_id, retrieve existing API key
+            # Idempotency: if already paid with this payment_id, retrieve existing API key by true org_id
             if order_row["status"] == "paid":
                 if order_row["payment_id"] == payment_id:
+                    actual_org_id = order_row["org_id"]
                     existing_key_row = conn.execute(
                         "SELECT key_prefix FROM api_keys WHERE org_id = ?",
-                        (customer_email,)
+                        (actual_org_id,)
                     ).fetchone()
                     prefix = existing_key_row["key_prefix"] if existing_key_row else "pk_live"
                     return {
                         "status": "success",
                         "message": "Payment verified (previously fulfilled).",
                         "api_key": f"{prefix}_[REDACTED]",
-                        "org_id": customer_email,
+                        "org_id": actual_org_id,
                         "plan": verified_plan,
                         "monthly_quota": quota
                     }
@@ -155,6 +175,7 @@ class RazorpayBilling:
                     raise HTTPException(status_code=400, detail="Order already completed with a different payment.")
 
             # Provision Org & Generate Secure API Key inside transaction
+            customer_email = stored_org_or_email if "@" in stored_org_or_email else email
             org_id = f"org_{hashlib.md5((customer_email + order_id).encode()).hexdigest()[:10]}"
             conn.execute("""
             INSERT OR REPLACE INTO organizations (id, name, email, plan, monthly_quota)
@@ -173,7 +194,7 @@ class RazorpayBilling:
             VALUES (?, ?, ?, ?)
             """, (key_id, org_id, key_prefix, key_hash))
 
-            # Mark order as paid
+            # Mark order as paid with the provisioned org_id and payment_id
             conn.execute("""
             UPDATE razorpay_orders
             SET payment_id = ?, org_id = ?, status = 'paid'
