@@ -1,0 +1,35 @@
+From: Polyglot Engine <engine@polyglot.ai>
+Subject: [PATCH] fix(i18n): resolve German layout expansion and navigation collisions
+---
+ public/app/core/components/Nav/Nav.css         | 6 ++++++
+ public/app/features/alerting/AlertingTable.css | 7 +++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/public/app/core/components/Nav/Nav.css b/public/app/core/components/Nav/Nav.css
+index e7f2a10..c4d9201 100644
+--- a/public/app/core/components/Nav/Nav.css
++++ b/public/app/core/components/Nav/Nav.css
+@@ -24,3 +24,9 @@
+ [data-testid="Nav menu item"] {
++  min-width: fit-content;
++  max-width: 100%;
++  white-space: nowrap;
+ }
++
++.toolbar-actions-group {
++  flex-shrink: 0;
++  min-width: 68px;
++}
+diff --git a/public/app/features/alerting/AlertingTable.css b/public/app/features/alerting/AlertingTable.css
+index 89a1b42..23f7c11 100644
+--- a/public/app/features/alerting/AlertingTable.css
++++ b/public/app/features/alerting/AlertingTable.css
+@@ -45,3 +45,10 @@
+ .rule-list-action-button {
+-  width: 61px;
++  min-width: 68px;
++  padding: 0 8px;
++  flex-shrink: 0;
+ }
+-- 
+2.42.0

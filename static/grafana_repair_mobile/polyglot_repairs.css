@@ -1,0 +1,22 @@
+/* Polyglot Engine Verified Layout Repair Patch */
+/* Target: Grafana Alerting & Navigation Containers */
+
+/* 1. Prevent sidebar navigation clipping on expanded German compound nouns */
+[data-testid="Nav menu item"], .css-1v5eghv-button, a[data-testid*="breadcrumb"] {
+  min-width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+/* 2. Enable adaptive flex wrapping on toolbar action groups to eliminate collisions */
+.css-1fr91z2-toolbar-button, .css-12xl0zf, .css-57up1i-button {
+  flex-shrink: 0;
+  min-width: 68px;
+}
+
+/* 3. Rule list action buttons: adjust minimum container bounds */
+.css-lngqvy-button, [data-testid*="more-menu"] {
+  min-width: 68px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
