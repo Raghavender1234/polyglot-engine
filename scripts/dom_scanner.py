@@ -643,12 +643,21 @@ def main():
                     for vp in viewports:
                         page = browser.new_page(viewport={"width": vp["width"], "height": vp["height"]})
                         try:
-                            page.goto(full_url, wait_until="domcontentloaded", timeout=20000)
-                            # Wait for web fonts & React/Vue hydration
+                            page.goto(full_url, wait_until="networkidle", timeout=30000)
+                        except Exception:
+                            try:
+                                page.goto(full_url, wait_until="domcontentloaded", timeout=15000)
+                            except Exception as e:
+                                if args.verbose:
+                                    print(f"⚠️ Page load notice for {full_url}: {e}")
+                        try:
+                            page.wait_for_selector("button, a, [role='button'], nav", timeout=10000)
+                        except Exception:
+                            pass
+                        try:
                             page.evaluate("() => document.fonts ? document.fonts.ready : Promise.resolve()")
-                        except Exception as e:
-                            if args.verbose:
-                                print(f"⚠️ Page load notice for {full_url}: {e}")
+                        except Exception:
+                            pass
 
                         if args.screenshots:
                             os.makedirs(args.screenshots, exist_ok=True)

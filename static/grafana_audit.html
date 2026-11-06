@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Polyglot Engine — Layout Audit & Diagnosis Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 32px; }
+    .container { max-width: 1180px; margin: 0 auto; }
+    .header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 24px; color: #60a5fa; }
+    .badge { background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 5px 14px; font-size: 12px; color: #94a3b8; font-weight: 600; }
+    .badge-live { border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.1); }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }
+    .card .val { font-size: 28px; font-weight: 700; margin-top: 6px; }
+    .card.blue .val { color: #60a5fa; }
+    .card.amber .val { color: #f59e0b; }
+    .card.green .val { color: #10b981; }
+    .card.orange .val { color: #f97316; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #1e293b; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
+    th { background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+    .tag { background: #334155; border-radius: 4px; padding: 2px 6px; font-family: monospace; }
+    .badge-diag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-orange { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+    .badge-cyan { background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .badge-source { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; font-family: monospace; text-transform: uppercase; }
+    .badge-source-api { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-source-preset { background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); }
+    .badge-source-pseudo { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-source-fallback { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .status-fit { color: #10b981; font-weight: 600; }
+    .status-overflow { color: #f59e0b; font-weight: 600; }
+    .status-intervene { color: #f97316; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
+        <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: https://play.grafana.org | Tested Locales: de-DE, ar-SA</div>
+      </div>
+      <div class="badge badge-live">Mode: 100% Neural AI Translation (OpenAI GPT-4o-mini — 132 API Calls, 0 Presets)</div>
+    </div>
+
+    <div class="grid">
+      <div class="card blue">
+        <div style="color: #94a3b8; font-size: 12px;">UI Elements Inspected</div>
+        <div class="val">113</div>
+      </div>
+      <div class="card amber">
+        <div style="color: #94a3b8; font-size: 12px;">Layout Overflows Caught</div>
+        <div class="val">132</div>
+      </div>
+      <div class="card green">
+        <div style="color: #94a3b8; font-size: 12px;">Verified In-Browser Repairs</div>
+        <div class="val">123</div>
+      </div>
+      <div class="card orange">
+        <div style="color: #94a3b8; font-size: 12px;">Needs Intervention</div>
+        <div class="val">9</div>
+      </div>
+    </div>
+
+    <!-- Whole-Page Visual Integrity & Collision Test -->
+    <div class="card" style="margin-bottom: 24px; border-left: 4px solid #10b981;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 700; color: #60a5fa;">🌐 Whole-Page Multi-Element Collision & Visual Integrity Test</div>
+        <span class="badge badge-live">Live Chromium Reflow Test</span>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.5;">
+        All candidate repairs were applied <strong>simultaneously across the live browser DOM</strong> to verify that repairing one element never displaces or overlaps adjacent navigation or sibling containers.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; background: #0f172a; padding: 12px 16px; border-radius: 8px;">
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Concurrently Swapped Elements</div>
+          <div style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 4px;">132</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Inter-Element Overlaps / Collisions</div>
+          <div style="font-size: 18px; font-weight: 700; color: #ef4444; margin-top: 4px;">
+            7 detected (⚠️ Collisions Found)
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Translation Provenance Breakdown</div>
+          <div style="font-size: 13px; font-weight: 600; color: #34d399; margin-top: 6px;">
+            132 OpenAI API (100%) / 0 Presets
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="font-size: 18px; margin-bottom: 12px;">Component Layout Audit & Diagnosis Log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Original Text</th>
+          <th>Locale</th>
+          <th>Provenance</th>
+          <th>Diagnosis</th>
+          <th>Container vs Overflow</th>
+          <th>Live Browser Swap / Action</th>
+          <th>Browser Verification</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Skip to main content</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">137px limit<br><small style="color: #94a3b8;">+33.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Inhalt überspringen</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+16.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Skip to main content</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">137px limit<br><small style="color: #94a3b8;">+10.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اذهب للمحتوى⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+50.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Starred</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">49px limit<br><small style="color: #94a3b8;">+6.3px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Mark.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+11.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Dashboards</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">80px limit<br><small style="color: #94a3b8;">+18.6px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧لوحات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+50.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Pages</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">41px limit<br><small style="color: #94a3b8;">+0.4px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Seiten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Pages</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">41px limit<br><small style="color: #94a3b8;">+5.5px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧صفحات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+5.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Explore</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">50px limit<br><small style="color: #94a3b8;">+19.7px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Entdecken</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+20.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Explore</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">50px limit<br><small style="color: #94a3b8;">+3.9px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧استكشف⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+12.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Drilldown</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">62px limit<br><small style="color: #94a3b8;">+23.3px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Details</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+17.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>AI</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">13px limit<br><small style="color: #94a3b8;">+127.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>KI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>AI</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">13px limit<br><small style="color: #94a3b8;">+80.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧ذكاء⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+6.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Alerts & IRM</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">81px limit<br><small style="color: #94a3b8;">+110.3px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~149px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Benachrichtigungen</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+52.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Alerts & IRM</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">81px limit<br><small style="color: #94a3b8;">+51.3px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تنبيهات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+49.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Machine learning</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">114px limit<br><small style="color: #94a3b8;">+22.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Lernen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+68.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Testing & synthetics</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">133px limit<br><small style="color: #94a3b8;">+105.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Tests und Synthetik</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+3.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Observability</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">87px limit<br><small style="color: #94a3b8;">+21.7px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Beobachten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+8.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Connections</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">83px limit<br><small style="color: #94a3b8;">+10.0px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Verbinden</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+15.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>More apps</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">71px limit<br><small style="color: #94a3b8;">+1.5px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Mehr</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+37.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>More apps</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">71px limit<br><small style="color: #94a3b8;">+42.7px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧المزيد⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+45.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Dashboards</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">80px limit<br><small style="color: #94a3b8;">+18.6px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧لوحات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+50.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Sign in</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">45px limit<br><small style="color: #94a3b8;">+21.8px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Anmelden</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+38.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Sign in</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">45px limit<br><small style="color: #94a3b8;">+38.1px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تسجيل⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Edit</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">49px limit<br><small style="color: #94a3b8;">+22.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Ändern</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+40.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h1&gt;</span></td>
+          <td>Welcome to Grafana Play</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">324px limit<br><small style="color: #94a3b8;">+233.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Willkommen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+90.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h1&gt;</span></td>
+          <td>Welcome to Grafana Play</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">324px limit<br><small style="color: #94a3b8;">+52.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مرحبًا في جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+106.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Play is a public sandbox for testing and learning Grafana that runs on Grafana Cloud.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">398px limit<br><small style="color: #94a3b8;">+411.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Öffentliche Sandbox für Grafana</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+153.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Play is a public sandbox for testing and learning Grafana that runs on Grafana Cloud.</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">398px limit<br><small style="color: #94a3b8;">+123.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اختبر جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+331.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Find interactive demos, explore how Grafana works, and see what you can build, without logging in or signing up
+for
+an account.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">398px limit<br><small style="color: #94a3b8;">+826.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Interaktive Demos entdecken</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+176.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Find interactive demos, explore how Grafana works, and see what you can build, without logging in or signing up
+for
+an account.</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">398px limit<br><small style="color: #94a3b8;">+430.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧استكشف جرافانا بدون تسجيل⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+248.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Explore
+Interactive
+Guides →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">198px limit<br><small style="color: #94a3b8;">+89.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Erkunden →</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+48.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Watch ObservabilityCON 2026 Keynote →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">287px limit<br><small style="color: #94a3b8;">+120.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Keynote ansehen →</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+82.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Watch ObservabilityCON 2026 Keynote →</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">287px limit<br><small style="color: #94a3b8;">+32.7px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧شاهد كلمة ⁦ObservabilityCON⁩ ⁦2026⁩ →⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+12.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana Cloud</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94px limit<br><small style="color: #94a3b8;">+6.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Community Resources</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">146px limit<br><small style="color: #94a3b8;">+35.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Gemeinschaftsress.</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+29.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Webinars and Videos</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">138px limit<br><small style="color: #94a3b8;">+10.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Webinare & Videos</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+30.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Webinars and Videos</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">138px limit<br><small style="color: #94a3b8;">+60.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧ندوات فيديو⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+44.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Support Forum</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">100px limit<br><small style="color: #94a3b8;">+6.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Supportforum</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+34.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Upcoming Grafana Events</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">170px limit<br><small style="color: #94a3b8;">+113.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana-Events</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+24.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🌟 Featured Grafana Contributor</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">153px limit<br><small style="color: #94a3b8;">+165.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>🌟 Grafana-Beitragender</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+32.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🌟 Featured Grafana Contributor</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">153px limit<br><small style="color: #94a3b8;">+33.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧🌟 مساهم مميز⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+32.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>is an Observability Architect at Adaptera and an active contributor to the</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">153px limit<br><small style="color: #94a3b8;">+345.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>ist Architekt bei Adaptera</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>is an Observability Architect at Adaptera and an active contributor to the</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">153px limit<br><small style="color: #94a3b8;">+131.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مهندس مراقبة⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Christos</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">49.7px limit<br><small style="color: #94a3b8;">+5.2px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Christus</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+49.7px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana Zabbix</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">93.4px limit<br><small style="color: #94a3b8;">+7.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana Zabbix</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+93.4px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h3&gt;</span></td>
+          <td>Dashboard Quest: A Grafana Dashboard Adventure Game</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">12px limit<br><small style="color: #94a3b8;">+487.6px overflow</small></td>
+          <td><strong>Remove fixed width constraint; allow multi-line heading wrap.</strong><br><small style="color: #94a3b8;">Candidate: <code>Dashboard Quest</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-83.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h3&gt;</span></td>
+          <td>Dashboard Quest: A Grafana Dashboard Adventure Game</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">12px limit<br><small style="color: #94a3b8;">+292.9px overflow</small></td>
+          <td><strong>Remove fixed width constraint; allow multi-line heading wrap.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مغامرة جرافانا⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-28.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Dashboard Quest: A Grafana Dashboard Adventure Game</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94.9px limit<br><small style="color: #94a3b8;">+404.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Dashboard Quest</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+94.9px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Dashboard Quest: A Grafana Dashboard Adventure Game</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94.9px limit<br><small style="color: #94a3b8;">+210.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مغامرة جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+94.9px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>A choose-your-own-adventure game for finding Grafana dashboards. Explore the story, collect items, and step
+through different portals
+to discover real Grafana Play dashboards.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">12px limit<br><small style="color: #94a3b8;">+1359.3px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>Finde Grafana-Dashboards!</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-72.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>A choose-your-own-adventure game for finding Grafana dashboards. Explore the story, collect items, and step
+through different portals
+to discover real Grafana Play dashboards.</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">12px limit<br><small style="color: #94a3b8;">+879.9px overflow</small></td>
+          <td><strong>Set 'min-width: fit-content;' (container needs ~110px).</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧استكشف لوحات جرافانا!⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-26.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Marie Cruz</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">36.5px limit<br><small style="color: #94a3b8;">+40.1px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Marie Cruz</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+36.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Marie Cruz</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">36.5px limit<br><small style="color: #94a3b8;">+17.0px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧ماري⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+36.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🏆 Top Community contributors (last 30 days)</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">14px limit<br><small style="color: #94a3b8;">+358.9px overflow</small></td>
+          <td><strong>Remove fixed width constraint; allow multi-line heading wrap.</strong><br><small style="color: #94a3b8;">Candidate: <code>🏆 Top-Beiträge (30 Tage)</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-165.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🏆 Top Community contributors (last 30 days)</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">14px limit<br><small style="color: #94a3b8;">+240.6px overflow</small></td>
+          <td><strong>Remove fixed width constraint; allow multi-line heading wrap.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧🏆 أفضل المساهمين⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-83.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Contributor</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">77px limit<br><small style="color: #94a3b8;">+10.0px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Beitragen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+13.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Merged PRs</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">81px limit<br><small style="color: #94a3b8;">+78.2px overflow</small></td>
+          <td><strong>Set 'min-width: 163px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>PRs zusammenführen</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+66.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Merged PRs</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">81px limit<br><small style="color: #94a3b8;">+51.4px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧دمج الطلبات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+26.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Vivek1898</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">68px limit<br><small style="color: #94a3b8;">+0.2px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Vivek1898</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Vivek1898</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">68px limit<br><small style="color: #94a3b8;">+4.2px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧فيفيك⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+45.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>jackeddisciple</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94px limit<br><small style="color: #94a3b8;">+49.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Jünger</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+47.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>weng5e</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">53px limit<br><small style="color: #94a3b8;">+0.5px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧وينج ⁦5⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+21.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ShadiestGoat</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+27.2px overflow</small></td>
+          <td><strong>Set 'min-width: 131px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Schattigste Ziege</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+26.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ShadiestGoat</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+8.3px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧ماعز غامض⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+31.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>What’s new with Grafana variables: less clutter, easier reuse across dashboards, and more</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">264.6px limit<br><small style="color: #94a3b8;">+615.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Neuigkeiten zu Grafana-Variablen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+264.6px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>What’s new with Grafana variables: less clutter, easier reuse across dashboards, and more</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">264.6px limit<br><small style="color: #94a3b8;">+251.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧الجديد في متغيرات جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+264.6px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Bridging Alloy and OpenTelemetry: the OTel engine is now in Public Preview</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">259.1px limit<br><small style="color: #94a3b8;">+472.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Alloy & OpenTelemetry: OTel-Engine in Vorschau</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+259.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Bridging Alloy and OpenTelemetry: the OTel engine is now in Public Preview</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">259.1px limit<br><small style="color: #94a3b8;">+142.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧معاينة عامة لمحرك ⁦OTel⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+259.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Trace linkage: connect the dots between your app traces and database queries</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">269.4px limit<br><small style="color: #94a3b8;">+485.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Verknüpfung herstellen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+269.4px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Trace linkage: connect the dots between your app traces and database queries</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">269.4px limit<br><small style="color: #94a3b8;">+116.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تتبع الربط⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+269.4px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Instrumentation Hub in Grafana Cloud: start easier, stay in control</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">253.5px limit<br><small style="color: #94a3b8;">+287.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Instrumentierung starten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+253.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Instrumentation Hub in Grafana Cloud: start easier, stay in control</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">253.5px limit<br><small style="color: #94a3b8;">+120.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧محور الأدوات في ⁦Grafana⁩ ⁦Cloud⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+253.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana 13.3 release: manage variables across dashboards, share findings with Notebooks, a UI refresh, and more</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">259.8px limit<br><small style="color: #94a3b8;">+592.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana 13.3: Variablen verwalten, Erkenntnisse teilen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+259.8px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana 13.3 release: manage variables across dashboards, share findings with Notebooks, a UI refresh, and more</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">259.8px limit<br><small style="color: #94a3b8;">+465.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧إصدار ⁦Grafana⁩ ⁦13.3⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+259.8px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Evaluate AI models for observability: o11y-bench joins Fireworks' Specialized Intelligence Index and reaches v1.1</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">278.2px limit<br><small style="color: #94a3b8;">+731.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>KI-Modelle bewerten: o11y-bench zu Fireworks v1.1.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+278.2px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Evaluate AI models for observability: o11y-bench joins Fireworks' Specialized Intelligence Index and reaches v1.1</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">278.2px limit<br><small style="color: #94a3b8;">+457.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تقييم الذكاء الاصطناعي⁦:⁩ ⁦o11y-bench⁩ ينضم إلى ⁦Fireworks⁩ ⁦v1.1⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+278.2px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Agent Observability FAQ: Understand the value of monitoring, evaluating, and improving your AI agents</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">271.8px limit<br><small style="color: #94a3b8;">+519.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Agenten beobachten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+271.8px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Agent Observability FAQ: Understand the value of monitoring, evaluating, and improving your AI agents</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">271.8px limit<br><small style="color: #94a3b8;">+221.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧أسئلة حول مراقبة الوكلاء⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+271.8px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Spend less time on operational busywork and resolve incidents faster with Grafana Workflows</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">272.7px limit<br><small style="color: #94a3b8;">+469.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Weniger Routine, schnellere Lösungen mit Grafana Workflows.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+272.7px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Spend less time on operational busywork and resolve incidents faster with Grafana Workflows</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">272.7px limit<br><small style="color: #94a3b8;">+267.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧حل الحوادث أسرع مع ⁦Grafana⁩ ⁦Workflows⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+272.7px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ObservabilityCON 2026: A guide to all the announcements from Grafana Labs</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">276.3px limit<br><small style="color: #94a3b8;">+258.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>ObservabilityCON 2026: Ankündigungen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+276.3px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ObservabilityCON 2026: A guide to all the announcements from Grafana Labs</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">276.3px limit<br><small style="color: #94a3b8;">+146.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧⁦ObservabilityCON⁩ ⁦2026:⁩ إعلانات ⁦Grafana⁩ ⁦Labs⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+276.3px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>From production problem to proposed fix: Implement autonomous operations with Grafana AI</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">275.3px limit<br><small style="color: #94a3b8;">+468.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Autonome Abläufe mit Grafana AI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+275.3px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>From production problem to proposed fix: Implement autonomous operations with Grafana AI</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">275.3px limit<br><small style="color: #94a3b8;">+171.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تنفيذ العمليات الذاتية مع ⁦Grafana⁩ ⁦AI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+275.3px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Skip to main content</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">137px limit<br><small style="color: #94a3b8;">+33.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Inhalt überspringen</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+16.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Skip to main content</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">137px limit<br><small style="color: #94a3b8;">+10.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اذهب للمحتوى⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+50.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;nav&gt;</span></td>
+          <td>Grafana Play Home</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">132px limit<br><small style="color: #94a3b8;">+18.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana Spiel-Haus</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Examples</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">42px limit<br><small style="color: #94a3b8;">+17.8px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Beispiele</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-18.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Sign in</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">45px limit<br><small style="color: #94a3b8;">+21.8px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Anmelden</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+38.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Sign in</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">45px limit<br><small style="color: #94a3b8;">+38.1px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تسجيل⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Edit</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">16px limit<br><small style="color: #94a3b8;">+55.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Editieren</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+16.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>Edit</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">16px limit<br><small style="color: #94a3b8;">+17.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تعديل⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+16.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h1&gt;</span></td>
+          <td>Welcome to Grafana Play</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">177px limit<br><small style="color: #94a3b8;">+380.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Willkommen</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+57.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h1&gt;</span></td>
+          <td>Welcome to Grafana Play</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">177px limit<br><small style="color: #94a3b8;">+199.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مرحبًا في جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+63.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Play is a public sandbox for testing and learning Grafana that runs on Grafana Cloud.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">193px limit<br><small style="color: #94a3b8;">+616.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Öffentliche Sandbox für Grafana</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Play is a public sandbox for testing and learning Grafana that runs on Grafana Cloud.</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">193px limit<br><small style="color: #94a3b8;">+286.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اختبر جرافانا على السحابة⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+58.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Explore
+Interactive
+Guides →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">129px limit<br><small style="color: #94a3b8;">+158.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Anleitungen erkunden →</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+64.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Explore
+Interactive
+Guides →</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">129px limit<br><small style="color: #94a3b8;">+17.3px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧استكشاف →⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+1.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Watch ObservabilityCON 2026 Keynote →</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">129px limit<br><small style="color: #94a3b8;">+333.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Keynote ansehen →</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+64.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Watch ObservabilityCON 2026 Keynote →</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">129px limit<br><small style="color: #94a3b8;">+211.3px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧شاهد الكلمة →⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+10.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana Cloud</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94px limit<br><small style="color: #94a3b8;">+6.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Community Resources</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">146px limit<br><small style="color: #94a3b8;">+35.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Gemeinschaftsress.</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+29.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Webinars and Videos</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">138px limit<br><small style="color: #94a3b8;">+10.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Webinare & Videos</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+30.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Webinars and Videos</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">138px limit<br><small style="color: #94a3b8;">+60.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧ندوات فيديو⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+44.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Support Forum</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">100px limit<br><small style="color: #94a3b8;">+6.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Supportforum</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+34.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Upcoming Grafana Events</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">170px limit<br><small style="color: #94a3b8;">+113.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana-Events</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+24.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🌟 Featured Grafana Contributor</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">269px limit<br><small style="color: #94a3b8;">+49.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>🌟 Top-Beitragender</code></small></td>
+          <td><span class="status-intervene">⚠️ Layout Expansion (+32.0px deficit)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>is an Observability Architect at Adaptera and an active contributor to the</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">269px limit<br><small style="color: #94a3b8;">+252.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>ist Architekt bei Adaptera</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>is an Observability Architect at Adaptera and an active contributor to the</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">269px limit<br><small style="color: #94a3b8;">+15.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مهندس مراقبة في ⁦Adaptera⁩ ومساهم نشط في⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Christos</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
+          <td class="status-overflow">49.7px limit<br><small style="color: #94a3b8;">+5.2px overflow</small></td>
+          <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Christus</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+49.7px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana Zabbix</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">93.4px limit<br><small style="color: #94a3b8;">+7.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana Zabbix</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+93.4px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🏆 Top Community contributors (last 30 days)</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">94px limit<br><small style="color: #94a3b8;">+244.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>🏆 Top Beiträger</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-19.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;h2&gt;</span></td>
+          <td>🏆 Top Community contributors (last 30 days)</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">94px limit<br><small style="color: #94a3b8;">+160.6px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧🏆 أفضل المساهمين⁩</code></small></td>
+          <td><span class="status-intervene">⚠️ Deficit (-3.0px overflow)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>What’s new with Grafana variables: less clutter, easier reuse across dashboards, and more</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">166.0px limit<br><small style="color: #94a3b8;">+713.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Neuigkeiten zu Grafana-Variablen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+166.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>What’s new with Grafana variables: less clutter, easier reuse across dashboards, and more</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">166.0px limit<br><small style="color: #94a3b8;">+350.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧الجديد في متغيرات جرافانا⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+166.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Bridging Alloy and OpenTelemetry: the OTel engine is now in Public Preview</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">163.5px limit<br><small style="color: #94a3b8;">+568.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>OTel-Engine in Vorschau</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+163.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Bridging Alloy and OpenTelemetry: the OTel engine is now in Public Preview</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">163.5px limit<br><small style="color: #94a3b8;">+238.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧معاينة عامة لمحرك ⁦OTel⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+163.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Trace linkage: connect the dots between your app traces and database queries</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">163.9px limit<br><small style="color: #94a3b8;">+590.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Verknüpfung herstellen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+163.9px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Trace linkage: connect the dots between your app traces and database queries</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">163.9px limit<br><small style="color: #94a3b8;">+221.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تتبع الربط⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+163.9px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Instrumentation Hub in Grafana Cloud: start easier, stay in control</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">158.1px limit<br><small style="color: #94a3b8;">+383.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Instrumentierung starten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+158.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Instrumentation Hub in Grafana Cloud: start easier, stay in control</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">158.1px limit<br><small style="color: #94a3b8;">+215.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧محور الأدوات في ⁦Grafana⁩ ⁦Cloud⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+158.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana 13.3 release: manage variables across dashboards, share findings with Notebooks, a UI refresh, and more</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">169.1px limit<br><small style="color: #94a3b8;">+662.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Grafana 13.3: Neuigkeiten</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+169.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Grafana 13.3 release: manage variables across dashboards, share findings with Notebooks, a UI refresh, and more</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">169.1px limit<br><small style="color: #94a3b8;">+555.8px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧إصدار ⁦13.3:⁩ إدارة المتغيرات ومشاركة النتائج⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+169.1px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Evaluate AI models for observability: o11y-bench joins Fireworks' Specialized Intelligence Index and reaches v1.1</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">167.5px limit<br><small style="color: #94a3b8;">+842.1px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>KI-Modelle bewerten: o11y-bench erreicht v1.1.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+167.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Evaluate AI models for observability: o11y-bench joins Fireworks' Specialized Intelligence Index and reaches v1.1</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">167.5px limit<br><small style="color: #94a3b8;">+517.3px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تقييم نماذج الذكاء الاصطناعي⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+167.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Agent Observability FAQ: Understand the value of monitoring, evaluating, and improving your AI agents</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">165.5px limit<br><small style="color: #94a3b8;">+607.8px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Agenten überwachen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+165.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Agent Observability FAQ: Understand the value of monitoring, evaluating, and improving your AI agents</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">165.5px limit<br><small style="color: #94a3b8;">+327.9px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧أسئلة حول مراقبة الوكلاء⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+165.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Spend less time on operational busywork and resolve incidents faster with Grafana Workflows</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">143.0px limit<br><small style="color: #94a3b8;">+598.7px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Weniger Routine, schnellere Lösungen mit Grafana.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+143.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Spend less time on operational busywork and resolve incidents faster with Grafana Workflows</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">143.0px limit<br><small style="color: #94a3b8;">+397.4px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧حل الحوادث أسرع مع ⁦Grafana⁩ ⁦Workflows⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+143.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ObservabilityCON 2026: A guide to all the announcements from Grafana Labs</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">161.5px limit<br><small style="color: #94a3b8;">+373.0px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>ObservabilityCON 2026: Ankündigungen</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+161.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>ObservabilityCON 2026: A guide to all the announcements from Grafana Labs</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">161.5px limit<br><small style="color: #94a3b8;">+260.9px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧⁦ObservabilityCON⁩ ⁦2026:⁩ الإعلانات⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+161.5px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>From production problem to proposed fix: Implement autonomous operations with Grafana AI</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">167.3px limit<br><small style="color: #94a3b8;">+553.2px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Autonome Abläufe mit Grafana AI</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+167.3px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>From production problem to proposed fix: Implement autonomous operations with Grafana AI</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">167.3px limit<br><small style="color: #94a3b8;">+279.5px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧تنفيذ العمليات الذاتية مع ⁦Grafana⁩ ⁦AI⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+167.3px headroom)</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
