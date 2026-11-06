@@ -89,7 +89,19 @@ class VerifyPaymentRequest(BaseModel):
 class VerifyPaymentResponse(BaseModel):
     status: str
     message: str
-    api_key: str
+    api_key: Optional[str] = None
+    key_prefix: Optional[str] = None
+    key_redacted: bool = False
     org_id: str
     plan: str
     monthly_quota: int
+
+class RegenerateKeyRequest(BaseModel):
+    org_id: str
+    payment_id: str
+
+class RegenerateKeyResponse(BaseModel):
+    status: str
+    message: str
+    api_key: str
+    org_id: str

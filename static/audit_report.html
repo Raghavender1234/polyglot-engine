@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Polyglot Engine — Layout Audit Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 32px; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 24px; color: #60a5fa; }
+    .badge { background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 12px; font-size: 12px; color: #94a3b8; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }
+    .card .val { font-size: 28px; font-weight: 700; margin-top: 6px; }
+    .card.blue .val { color: #60a5fa; }
+    .card.amber .val { color: #f59e0b; }
+    .card.green .val { color: #10b981; }
+    .card.orange .val { color: #f97316; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #1e293b; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
+    th { background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+    .tag { background: #334155; border-radius: 4px; padding: 2px 6px; font-family: monospace; }
+    .status-fit { color: #10b981; font-weight: 600; }
+    .status-overflow { color: #f59e0b; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>⚡ Polyglot Engine — Layout Audit Report</h1>
+        <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: http://127.0.0.1:8000 | Tested Locales: de-DE, ur-PK, ar-SA, ja-JP</div>
+      </div>
+      <div class="badge">Engine v1.2.0 • HarfBuzz Verified</div>
+    </div>
+
+    <div class="grid">
+      <div class="card blue">
+        <div style="color: #94a3b8; font-size: 12px;">UI Elements Inspected</div>
+        <div class="val">36</div>
+      </div>
+      <div class="card amber">
+        <div style="color: #94a3b8; font-size: 12px;">Layout Overflows Caught</div>
+        <div class="val">12</div>
+      </div>
+      <div class="card green">
+        <div style="color: #94a3b8; font-size: 12px;">Verified Safe Repairs</div>
+        <div class="val">9</div>
+      </div>
+      <div class="card orange">
+        <div style="color: #94a3b8; font-size: 12px;">Needs Intervention</div>
+        <div class="val">3</div>
+      </div>
+    </div>
+
+    <h2 style="font-size: 18px; margin-bottom: 12px;">Component Layout Audit Log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Original Text</th>
+          <th>Locale</th>
+          <th>Container Limit</th>
+          <th>Rejected Full Width</th>
+          <th>Polyglot Safe Swap</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>de-DE</strong></td>
+          <td>497px</td>
+          <td class="status-overflow">+84.8px (581.8px)</td>
+          <td><code>[de-DE] Zero-latency</code> (120.2px)</td>
+          <td class="status-fit">✅ Fits (376.8px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ur-PK</strong></td>
+          <td>497px</td>
+          <td class="status-overflow">+77.8px (574.8px)</td>
+          <td><code>[ur-PK] Zero-latency</code> (119.0px)</td>
+          <td class="status-fit">✅ Fits (378.0px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ar-SA</strong></td>
+          <td>497px</td>
+          <td class="status-overflow">+70.0px (567.0px)</td>
+          <td><code>[ar-SA] Zero-latency</code> (110.3px)</td>
+          <td class="status-fit">✅ Fits (386.7px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ja-JP</strong></td>
+          <td>497px</td>
+          <td class="status-overflow">+30.8px (527.8px)</td>
+          <td><code>[ja-JP] Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key</code> (476.6px)</td>
+          <td class="status-fit">✅ Fits (20.4px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>de-DE</strong></td>
+          <td>84px</td>
+          <td class="status-overflow">+48.2px (132.2px)</td>
+          <td><code>[de-DE] 💳</code> (58.4px)</td>
+          <td class="status-fit">✅ Fits (25.6px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ur-PK</strong></td>
+          <td>84px</td>
+          <td class="status-overflow">+37.6px (121.6px)</td>
+          <td><code>[ur-PK] 💳</code> (56.5px)</td>
+          <td class="status-fit">✅ Fits (27.5px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ar-SA</strong></td>
+          <td>84px</td>
+          <td class="status-overflow">+31.7px (115.7px)</td>
+          <td><code>[ar-SA] 💳</code> (47.8px)</td>
+          <td class="status-fit">✅ Fits (36.2px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;button&gt;</span></td>
+          <td>💳 Get API Key</td>
+          <td><strong>ja-JP</strong></td>
+          <td>84px</td>
+          <td class="status-overflow">+27.7px (111.7px)</td>
+          <td><code>[ja-JP] 💳</code> (49.1px)</td>
+          <td class="status-fit">✅ Fits (34.9px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>de-DE</strong></td>
+          <td>89px</td>
+          <td class="status-overflow">+56.5px (145.5px)</td>
+          <td><code>[de-DE] Swagger</code> (98.2px)</td>
+          <td class="status-fit">✅ Fits (-9.2px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ur-PK</strong></td>
+          <td>89px</td>
+          <td class="status-overflow">+46.2px (135.2px)</td>
+          <td><code>[ur-PK] Swagger</code> (94.3px)</td>
+          <td class="status-fit">✅ Fits (-5.3px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ar-SA</strong></td>
+          <td>89px</td>
+          <td class="status-overflow">+41.6px (130.6px)</td>
+          <td><code>[ar-SA] Swagger</code> (89.6px)</td>
+          <td class="status-fit">✅ Fits (-0.6px headroom)</td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;a&gt;</span></td>
+          <td>Swagger Docs →</td>
+          <td><strong>ja-JP</strong></td>
+          <td>89px</td>
+          <td class="status-overflow">+36.5px (125.5px)</td>
+          <td><code>[ja-JP] Swagger</code> (82.1px)</td>
+          <td class="status-fit">✅ Fits (6.9px headroom)</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -27,6 +27,8 @@ from .models import (
     CreateOrderResponse,
     VerifyPaymentRequest,
     VerifyPaymentResponse,
+    RegenerateKeyRequest,
+    RegenerateKeyResponse,
     UIContext
 )
 from .engines.harfbuzz_meter import harfbuzz_engine
@@ -97,7 +99,7 @@ def measure_text_endpoint(payload: MeasureRequest, request: Request):
     )
 
 @app.post("/v1/localize", response_model=LocalizeResponse)
-@limiter.limit("60/minute")
+@limiter.limit("300/minute")
 def localize_endpoint(
     req: LocalizeRequest,
     request: Request,
@@ -263,3 +265,12 @@ def verify_payment_endpoint(req: VerifyPaymentRequest, request: Request):
         name=req.name
     )
     return VerifyPaymentResponse(**result)
+
+@app.post("/v1/billing/regenerate-key", response_model=RegenerateKeyResponse)
+@limiter.limit("5/minute")
+def regenerate_key_endpoint(req: RegenerateKeyRequest, request: Request):
+    result = razorpay_billing.regenerate_api_key(
+        org_id=req.org_id,
+        payment_id=req.payment_id
+    )
+    return RegenerateKeyResponse(**result)

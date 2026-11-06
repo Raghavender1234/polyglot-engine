@@ -132,6 +132,13 @@ class RazorpayBilling:
                             detail=f"Payment amount mismatch: expected {order_row['amount']} paise, received {payment.get('amount')} paise."
                         )
 
+                    # Verify payment order_id matches
+                    if payment.get("order_id") and payment.get("order_id") != order_id:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Payment belongs to order '{payment.get('order_id')}', not '{order_id}'."
+                        )
+
                     if payment.get("currency") != (order_row["currency"] or "INR"):
                         raise HTTPException(
                             status_code=400,
@@ -154,7 +161,7 @@ class RazorpayBilling:
             plan_info = PLANS.get(verified_plan, PLANS["starter"])
             quota = plan_info["quota"]
 
-            # Idempotency: if already paid with this payment_id, retrieve existing API key by true org_id
+            # Idempotency: if already paid with this payment_id, return clear message and key_redacted
             if order_row["status"] == "paid":
                 if order_row["payment_id"] == payment_id:
                     actual_org_id = order_row["org_id"]
@@ -165,8 +172,10 @@ class RazorpayBilling:
                     prefix = existing_key_row["key_prefix"] if existing_key_row else "pk_live"
                     return {
                         "status": "success",
-                        "message": "Payment verified (previously fulfilled).",
-                        "api_key": f"{prefix}_[REDACTED]",
+                        "message": "Payment verified (previously fulfilled). Plaintext API keys cannot be retrieved after issuance; only cryptographic hashes are stored. Use your saved key or call /v1/billing/regenerate-key.",
+                        "api_key": None,
+                        "key_prefix": prefix,
+                        "key_redacted": True,
                         "org_id": actual_org_id,
                         "plan": verified_plan,
                         "monthly_quota": quota
@@ -211,5 +220,41 @@ class RazorpayBilling:
             "plan": verified_plan,
             "monthly_quota": quota
         }
+
+    def regenerate_api_key(self, org_id: str, payment_id: str) -> Dict[str, Any]:
+        """
+        Securely rotates and issues a fresh API key for an existing verified customer,
+        revoking prior active keys.
+        """
+        with db.get_connection() as conn:
+            order_row = conn.execute(
+                "SELECT order_id, plan_id, status FROM razorpay_orders WHERE org_id = ? AND payment_id = ? AND status = 'paid'",
+                (org_id, payment_id)
+            ).fetchone()
+            if not order_row:
+                raise HTTPException(status_code=403, detail="Invalid organization ID or payment verification ID.")
+
+            # Deactivate older keys
+            conn.execute("UPDATE api_keys SET is_active = 0 WHERE org_id = ?", (org_id,))
+
+            import secrets
+            raw_token = secrets.token_hex(20)
+            raw_key = f"pk_live_{raw_token}"
+            key_id = f"key_{secrets.token_hex(6)}"
+            key_hash = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+            key_prefix = raw_key[:12]
+
+            conn.execute("""
+            INSERT INTO api_keys (id, org_id, key_prefix, key_hash, is_active)
+            VALUES (?, ?, ?, ?, 1)
+            """, (key_id, org_id, key_prefix, key_hash))
+            conn.commit()
+
+            return {
+                "status": "success",
+                "message": "New API key generated successfully. Copy and store it securely.",
+                "api_key": raw_key,
+                "org_id": org_id
+            }
 
 razorpay_billing = RazorpayBilling()

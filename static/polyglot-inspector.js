@@ -1,5 +1,5 @@
 /**
- * Polyglot Browser Inspector (v1.1.0)
+ * Polyglot Browser Inspector (v1.2.0)
  * Scans real DOM geometry, detects text overflow, element clipping & visual component collisions,
  * and automatically applies verified non-destructive repairs via Polyglot Engine.
  */
@@ -20,16 +20,96 @@
     overflowsDetected: 0,
     overlapsDetected: 0,
     repairsApplied: 0,
+    requiresIntervention: 0,
     isScanning: false,
     elements: []
   };
 
   /**
-   * Finds the primary text node within an element, ensuring child SVGs,
-   * icons, and nested markup are never destroyed during localization swaps.
+   * Dynamic source locale detection from script attribute, <html lang>, meta tags or navigator.
    */
-  function findPrimaryTextNode(element) {
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+  function detectSourceLocale() {
+    const fromAttr = scriptTag?.getAttribute('data-source-locale');
+    if (fromAttr) return fromAttr;
+    const htmlLang = document.documentElement.lang;
+    if (htmlLang && htmlLang.trim().length > 0) return htmlLang.trim();
+    const metaLang = document.querySelector('meta[name="language"]')?.getAttribute('content');
+    if (metaLang && metaLang.trim().length > 0) return metaLang.trim();
+    return navigator.language || 'en-US';
+  }
+
+  /**
+   * Detects semantic element type to inform Polyglot Engine's layout heuristics.
+   */
+  function detectElementType(element) {
+    const tag = element.tagName.toLowerCase();
+    const role = element.getAttribute('role');
+    const classes = String(element.className || '');
+
+    if (tag === 'button' || role === 'button' || /btn|button/.test(classes)) {
+      return 'button';
+    }
+    if (tag === 'nav' || role === 'navigation' || /nav|menu/.test(classes)) {
+      return 'nav';
+    }
+    if (/^h[1-6]$/.test(tag)) {
+      return 'heading';
+    }
+    if (tag === 'label') {
+      return 'label';
+    }
+    return 'general';
+  }
+
+  /**
+   * Explicit Text Node Selection Strategy:
+   * 1. Check for developer explicit attribute [data-polyglot-text]
+   * 2. Check for child element [data-polyglot-target]
+   * 3. Prioritize direct child text nodes to preserve icons & nested elements
+   * 4. Deep search excluding svgs, icons and tooltips
+   */
+  function findTargetTextNode(element) {
+    // Strategy 1: Explicit data-polyglot-text attribute on target or container
+    const explicitTextEl = element.querySelector('[data-polyglot-text]') || (element.hasAttribute('data-polyglot-text') ? element : null);
+    if (explicitTextEl) {
+      const walker = document.createTreeWalker(explicitTextEl, NodeFilter.SHOW_TEXT, null, false);
+      let n;
+      while ((n = walker.nextNode())) {
+        if (n.textContent.trim().length > 0) return n;
+      }
+    }
+
+    // Strategy 2: Explicit data-polyglot-target attribute
+    const explicitTarget = element.querySelector('[data-polyglot-target]');
+    if (explicitTarget) {
+      const walker = document.createTreeWalker(explicitTarget, NodeFilter.SHOW_TEXT, null, false);
+      let n;
+      while ((n = walker.nextNode())) {
+        if (n.textContent.trim().length > 0) return n;
+      }
+    }
+
+    // Strategy 3: Direct child text nodes (avoids nested SVGs, badges, tooltips)
+    for (let i = 0; i < element.childNodes.length; i++) {
+      const child = element.childNodes[i];
+      if (child.nodeType === Node.TEXT_NODE && child.textContent.trim().length > 0) {
+        return child;
+      }
+    }
+
+    // Strategy 4: Deep text walker, explicitly rejecting icons and non-text elements
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        const tag = parent.tagName.toLowerCase();
+        if (tag === 'svg' || tag === 'path' || tag === 'i' || (tag === 'span' && parent.classList.contains('icon'))) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return node.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    }, false);
+
     let target = null;
     let maxLen = 0;
     let node;
@@ -44,12 +124,12 @@
   }
 
   function getElementText(element) {
-    const textNode = findPrimaryTextNode(element);
+    const textNode = findTargetTextNode(element);
     return textNode ? textNode.textContent.trim() : (element.innerText || '').trim();
   }
 
   function safelyApplyText(element, newText) {
-    const textNode = findPrimaryTextNode(element);
+    const textNode = findTargetTextNode(element);
     if (textNode) {
       textNode.textContent = newText;
     } else {
@@ -59,7 +139,7 @@
 
   /**
    * Scans adjacent/sibling interactive elements to detect bounding-box collisions
-   * (e.g. text expanding and colliding with adjacent icons, buttons or menu items).
+   * Filters out intentional overlaps (absolute/fixed positioning, aria-hidden, different z-index layers).
    */
   function detectVisualOverlaps() {
     const interactiveContainers = document.querySelectorAll(
@@ -69,29 +149,50 @@
 
     interactiveContainers.forEach((container) => {
       if (container.closest('#polyglot-inspector-root')) return;
+
       const children = Array.from(container.children).filter((c) => {
         const s = window.getComputedStyle(c);
-        return s.display !== 'none' && s.visibility !== 'hidden' && !c.closest('#polyglot-inspector-root');
+        // Filter out hidden, zero-opacity, or non-interactive background elements
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0 || s.pointerEvents === 'none') {
+          return false;
+        }
+        // Filter out intentional absolute/fixed positioned badges or overlays
+        if (s.position === 'absolute' || s.position === 'fixed') {
+          return false;
+        }
+        // Filter out decorative or aria-hidden elements
+        if (c.getAttribute('aria-hidden') === 'true' || c.getAttribute('role') === 'presentation' || c.getAttribute('role') === 'none') {
+          return false;
+        }
+        if (c.closest('#polyglot-inspector-root')) return false;
+        return true;
       });
 
       for (let i = 0; i < children.length; i++) {
         const r1 = children[i].getBoundingClientRect();
-        if (r1.width === 0 || r1.height === 0) continue;
+        if (r1.width <= 2 || r1.height <= 2) continue;
 
         for (let j = i + 1; j < children.length; j++) {
           const r2 = children[j].getBoundingClientRect();
-          if (r2.width === 0 || r2.height === 0) continue;
+          if (r2.width <= 2 || r2.height <= 2) continue;
 
-          // Check if bounding boxes collide (> 3px overlap in both dimensions)
+          // Check for intentional distinct stacking contexts
+          const s1 = window.getComputedStyle(children[i]);
+          const s2 = window.getComputedStyle(children[j]);
+          if (s1.zIndex !== s2.zIndex && s1.zIndex !== 'auto' && s2.zIndex !== 'auto') {
+            continue;
+          }
+
+          // Check if bounding boxes collide along the inline axis (> 5px overlap)
           const overlapX = Math.max(0, Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left));
           const overlapY = Math.max(0, Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top));
 
-          if (overlapX > 3 && overlapY > 3) {
+          if (overlapX > 5 && overlapY > 5) {
             collisionCount++;
             children[i].style.outline = '2px dashed #ef4444';
             children[j].style.outline = '2px dashed #ef4444';
-            children[i].setAttribute('title', '⚠️ Visual collision with adjacent element');
-            children[j].setAttribute('title', '⚠️ Visual collision with adjacent element');
+            children[i].setAttribute('title', '⚠️ Layout collision with sibling component');
+            children[j].setAttribute('title', '⚠️ Layout collision with sibling component');
           }
         }
       }
@@ -165,12 +266,15 @@
       headers['X-API-Key'] = API_KEY;
     }
 
+    const sourceLocale = detectSourceLocale();
+
     for (const item of inspectorState.elements) {
       const el = item.node;
       const text = item.originalText;
       const availableWidth = item.width || 140;
       const computed = window.getComputedStyle(el);
       const fontSize = parseFloat(computed.fontSize) || 14;
+      const elemType = detectElementType(el);
 
       try {
         const res = await fetch(`${API_URL.replace(/\/$/, '')}/v1/localize`, {
@@ -178,10 +282,10 @@
           headers,
           body: JSON.stringify({
             source_text: text,
-            source_locale: 'en-US',
+            source_locale: sourceLocale,
             target_locales: [currentLocale],
             ui_context: {
-              element_type: 'button',
+              element_type: elemType,
               max_width_px: availableWidth,
               font_size_px: fontSize,
               font_weight: 500
@@ -203,20 +307,17 @@
 
             // Post-Repair Verification: re-measure in the live DOM
             const stillOverflows = (el.scrollWidth > el.clientWidth + 1) ||
-              (el.scrollHeight > el.clientHeight + 1 && window.getComputedStyle(el).overflow === 'hidden');
+              (el.scrollHeight > el.clientHeight + 1 && (computed.overflow === 'hidden' || computed.overflowY === 'hidden'));
 
             if (!stillOverflows) {
               el.style.outline = '2px solid #10b981'; // Green: verified fit
               el.setAttribute('title', `✅ Layout verified: fits in ${el.clientWidth}px container`);
               inspectorState.repairsApplied++;
             } else {
-              // Fallback protection: apply graceful CSS truncation if container is rigidly narrow
-              el.style.outline = '2px dashed #3b82f6'; // Blue: fallback applied
-              el.style.overflow = 'hidden';
-              el.style.textOverflow = 'ellipsis';
-              el.style.whiteSpace = 'nowrap';
-              el.setAttribute('title', 'ℹ️ Shortened variant applied; container constrained, ellipsis added.');
-              inspectorState.repairsApplied++;
+              // When container is too narrow even for ultra-compact text, flag for developer intervention
+              inspectorState.requiresIntervention++;
+              el.style.outline = '2px dashed #f97316'; // Orange: intervention required
+              el.setAttribute('title', `⚠️ Developer intervention needed: container (${el.clientWidth}px) too narrow even for ultra-compact text (${el.scrollWidth}px). Expand container or adjust layout.`);
             }
           }
         } else {
@@ -263,6 +364,7 @@
         <div style="display: flex; justify-content: space-between;">Text Overflows: <strong id="poly-overflows" style="color: #f59e0b;">0</strong></div>
         <div style="display: flex; justify-content: space-between;">Visual Collisions: <strong id="poly-overlaps" style="color: #ef4444;">0</strong></div>
         <div style="display: flex; justify-content: space-between;">Verified Repairs: <strong id="poly-repairs" style="color: #10b981;">0</strong></div>
+        <div style="display: flex; justify-content: space-between;">Needs Intervention: <strong id="poly-intervention" style="color: #f97316;">0</strong></div>
       </div>
 
       <div style="display: flex; gap: 6px; margin-bottom: 10px;">
@@ -295,11 +397,13 @@
     const elOverflows = document.getElementById('poly-overflows');
     const elOverlaps = document.getElementById('poly-overlaps');
     const elRepairs = document.getElementById('poly-repairs');
+    const elIntervention = document.getElementById('poly-intervention');
 
     if (elScanned) elScanned.textContent = inspectorState.elementsScanned;
     if (elOverflows) elOverflows.textContent = inspectorState.overflowsDetected;
     if (elOverlaps) elOverlaps.textContent = inspectorState.overlapsDetected;
     if (elRepairs) elRepairs.textContent = inspectorState.repairsApplied;
+    if (elIntervention) elIntervention.textContent = inspectorState.requiresIntervention;
   }
 
   // Initialize on load
