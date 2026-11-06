@@ -1,0 +1,23 @@
+{
+  "target_url": "https://play.grafana.org/alerting/list",
+  "locale": "de-DE",
+  "viewport": "desktop (1280x800)",
+  "total_scanned": 236,
+  "total_translated": 10,
+  "provenance_counts": {
+    "OPENAI_API": 10,
+    "PRESET": 0,
+    "PSEUDO": 0,
+    "FALLBACK": 0
+  },
+  "initial_overflows": 0,
+  "initial_collisions": 0,
+  "final_overflows": 0,
+  "final_collisions": 0,
+  "resolved_overflows": 0,
+  "resolved_collisions": 0,
+  "diagnosed_issues": [],
+  "screenshots": {
+    "Scan de-DE (desktop)": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_scan_de-DE_desktop.png"
+  }
+}

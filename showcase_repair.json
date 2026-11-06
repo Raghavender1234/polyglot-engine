@@ -1,0 +1,35 @@
+{
+  "target_url": "http://127.0.0.1:8000/static/showcase.html",
+  "locale": "de-DE",
+  "viewport": "desktop (1280x800)",
+  "total_scanned": 14,
+  "total_translated": 14,
+  "provenance_counts": {
+    "OPENAI_API": 14,
+    "PRESET": 0,
+    "PSEUDO": 0,
+    "FALLBACK": 0
+  },
+  "initial_overflows": 1,
+  "initial_collisions": 0,
+  "final_overflows": 0,
+  "final_collisions": 0,
+  "resolved_overflows": 1,
+  "resolved_collisions": 0,
+  "diagnosed_issues": [
+    {
+      "category": "CSS_RIGID_WIDTH_CONSTRAINT",
+      "explanation": "Element is constrained to a fixed 39px box, which cannot accommodate standard vocabulary in de-DE.",
+      "remedy": "Set 'min-width: 78px; flex-shrink: 0;' or use fit-content.",
+      "selector": ".rigid-btn",
+      "current_width": 39,
+      "overflow_px": 27
+    }
+  ],
+  "dynamic_css": "/* Polyglot Engine Dynamically Calculated Layout Patch */\n/* Rules generated from actual in-browser reflow geometry */\n\n.rigid-btn {\n  min-width: 74px !important;\n  max-width: none !important;\n  width: auto !important;\n  white-space: nowrap !important;\n}\n",
+  "git_patch": null,
+  "screenshots": {
+    "Before Repair (Initial Inoculation)": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_before_de-DE.png",
+    "After Closed-Loop Repair": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_after_de-DE.png"
+  }
+}

@@ -55,7 +55,15 @@ Polyglot Engine physically shapes text against real OpenType TrueType binaries (
 
 ```text
 polyglot-engine/
-├── polyglot.db                 # Persistent SQLite database
+├── polyglot/                   # Modular Autonomous Layout & Closed-Loop Repair Package
+│   ├── __init__.py             # Version 1.3.0
+│   ├── cli.py                  # Developer CLI (scan, diagnose, repair)
+│   ├── scanner.py              # DOM element discovery & tree-walker text extractor
+│   ├── detector.py             # Whole-page collision & container overflow detector
+│   ├── diagnosis.py            # Computed layout constraint & root-cause analyzer
+│   ├── patcher.py              # Dynamic geometry CSS generator & Git diff patcher
+│   ├── repair.py               # Closed-loop backtracking repair orchestrator
+│   └── reporting.py            # Evidence-based, truthful HTML/JSON reporting
 ├── app/
 │   ├── main.py                 # FastAPI routes, rate limiter, and core pipeline
 │   ├── models.py               # Pydantic schemas (Request/Response/Razorpay/Metrics)
@@ -68,25 +76,41 @@ polyglot-engine/
 │       ├── css_mapper.py       # Script-specific CSS properties & line heights
 │       └── llm_translator.py   # 1-pass multi-variant translation (gpt-4o-mini + fallback)
 ├── fonts/                      # Bundled reference OpenType TrueType fonts
-│   ├── Inter-Regular.ttf
-│   ├── NotoSansArabic-Regular.ttf
-│   ├── NotoNastaliqUrdu-Regular.ttf
-│   └── NotoSansJP-Regular.ttf
-├── static/
-│   └── index.html              # Dark-mode visual playground with Razorpay checkout
-├── scripts/
-│   └── ci_check.py             # CI/CD script for localizing entire JSON files
-├── .github/
-│   └── workflows/
-│       └── polyglot-ci.yml     # Turnkey GitHub Actions workflow
+├── static/                     # Dark-mode visual playground & audit proof showcase
+├── scripts/                    # Headless inspection & CI scripts
 ├── tests/
+│   ├── test_polyglot_modules.py# Patcher, detector, diagnosis & reporting tests
 │   ├── test_api.py             # API endpoint integration tests
 │   ├── test_bidi_shield.py     # BiDi isolation tests
 │   ├── test_harfbuzz.py        # HarfBuzz pixel measurement & scaling tests
 │   └── test_razorpay.py        # Razorpay order & key issuance tests
-├── Dockerfile                  # Production container definition (supports $PORT)
-├── render.yaml                 # 1-click Render blueprint
-└── requirements.txt
+├── pyproject.toml              # Build config & console script entrypoint
+├── requirements.txt
+└── polyglot.db
+```
+
+---
+
+## 🛠️ Polyglot CLI — Automated Layout Scanner & Repair Engine
+
+Polyglot includes a clean developer CLI to scan any live URL or web app, diagnose root causes, and execute closed-loop layout repairs in an isolated browser.
+
+### 1. Full-Page Multilingual Layout Scan
+Scan any webpage across multiple target locales and viewports. Inspects the entire DOM, detects text overflows, and tests element bounding boxes against all visible page elements for collisions:
+```bash
+polyglot scan https://play.grafana.org/alerting/list --locales de-DE,ar-SA --viewports desktop,mobile --output audit.html --json audit.json
+```
+
+### 2. Root-Cause Layout Diagnosis
+Inspect why text broke or collided (e.g. `FLEX_CONTAINER_NO_WRAP`, `CSS_RIGID_WIDTH_CONSTRAINT`, `BIDI_DIRECTIONAL_ISOLATION`, or linguistic text expansion) and get actionable CSS remedies:
+```bash
+polyglot diagnose audit.json
+```
+
+### 3. Closed-Loop Multi-Candidate Repair & Verification
+Backtracks across candidate translation lengths (`standard` → `compact` → `ultra_short`), injects dynamically calculated non-hardcoded CSS overrides, re-evaluates in Playwright, and produces verified proof:
+```bash
+polyglot repair http://localhost:8000/static/showcase.html --locales de-DE --repo-path . --output repair.html
 ```
 
 ---
