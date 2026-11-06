@@ -1,0 +1,33 @@
+name: Polyglot Layout-Safe Localization CI
+
+on:
+  pull_request:
+    paths:
+      - 'locales/en.json'
+  workflow_dispatch:
+
+jobs:
+  localize-and-check-layout:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Polyglot CI Check
+        env:
+          POLYGLOT_API_URL: ${{ secrets.POLYGLOT_API_URL }} # e.g. https://polyglot-engine.onrender.com
+          POLYGLOT_API_KEY: ${{ secrets.POLYGLOT_API_KEY }}
+        run: |
+          python scripts/ci_check.py --input locales/en.json --targets de-DE,ur-PK,ar-SA,ja-JP
+
+      - name: Commit & Push Localized JSON Files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(i18n): auto-generate layout-safe localized bundles [skip ci]"
+          file_pattern: "locales/*.json"

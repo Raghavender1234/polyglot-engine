@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polyglot Engine - Layout-Safe Localization Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Razorpay Standard Checkout SDK -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Nastaliq+Urdu:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+    .urdu-font { font-family: 'Noto Nastaliq Urdu', serif; }
+    .arabic-font { font-family: 'Noto Sans Arabic', sans-serif; }
+    .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+    .inter-font { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="flex flex-wrap items-center justify-between pb-6 border-b border-slate-800 gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl font-black bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 bg-clip-text text-transparent">
+            Polyglot Engine
+          </span>
+          <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-950 text-emerald-400 rounded border border-emerald-800/80">
+            Razorpay Subscriptions Ready
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">
+          Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openPricingModal()" class="text-xs px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white font-semibold rounded-lg shadow-lg shadow-indigo-600/30 transition flex items-center gap-1.5">
+          <span>💳 Get API Key</span>
+        </button>
+        <a href="/docs" target="_blank" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition">
+          Swagger Docs &rarr;
+        </a>
+      </div>
+    </header>
+
+    <!-- Playground Controls -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      <!-- Input Column -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+        <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">UI Request Parameters</h2>
+        
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Source Text</label>
+          <input id="sourceText" type="text" value="Complete Purchase - $49.99"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">
+              Max Width (<span id="widthVal" class="text-indigo-400 font-mono">145</span>px)
+            </label>
+            <input id="maxWidth" type="range" min="70" max="260" value="145" class="w-full accent-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">
+              Font Size (<span id="fontSizeVal" class="text-indigo-400 font-mono">14</span>px)
+            </label>
+            <input id="fontSize" type="range" min="11" max="20" value="14" class="w-full accent-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Target Locales</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <input type="checkbox" value="ur-PK" checked class="locale-check accent-indigo-500"> Urdu (ur-PK)
+            </label>
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <input type="checkbox" value="ar-SA" checked class="locale-check accent-indigo-500"> Arabic (ar-SA)
+            </label>
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <input type="checkbox" value="de-DE" checked class="locale-check accent-indigo-500"> German (de-DE)
+            </label>
+            <label class="flex items-center gap-1.5 text-slate-300">
+              <input type="checkbox" value="ja-JP" checked class="locale-check accent-indigo-500"> Japanese (ja-JP)
+            </label>
+          </div>
+        </div>
+
+        <button id="btnRun" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+          <span>Run HarfBuzz Layout Engine</span>
+        </button>
+
+        <div class="p-3 bg-slate-950/70 border border-slate-800/80 rounded-lg text-xs space-y-1">
+          <div class="text-slate-400">⚡ <span class="text-slate-200 font-semibold">The Moat in Action:</span></div>
+          <div class="text-slate-400">Drag the width slider down. German, Arabic & Urdu dynamically swap variants and report layout savings!</div>
+        </div>
+      </div>
+
+      <!-- Live Previews Column -->
+      <div class="lg:col-span-2 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Rendered Live UI Components</h2>
+          <span id="latencyBadge" class="text-xs px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded font-mono">
+            Latency: ~1.2ms
+          </span>
+        </div>
+
+        <!-- Dynamic Container for Results -->
+        <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Raw JSON Response Viewer -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Exact API Response Payload</span>
+            <span class="text-xs text-slate-400 font-mono">POST /v1/localize</span>
+          </div>
+          <pre id="jsonViewer" class="mt-3 text-xs font-mono text-sky-300 overflow-x-auto max-h-64 p-3 bg-slate-950 rounded-lg border border-slate-800"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Razorpay Subscription Modal -->
+  <div id="pricingModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+      <button onclick="closePricingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">&times;</button>
+      
+      <div>
+        <h3 class="text-lg font-bold text-white">Subscribe & Get API Key</h3>
+        <p class="text-xs text-slate-400 mt-1">Instant activation via Razorpay (Cards, UPI, Netbanking).</p>
+      </div>
+
+      <div class="space-y-3">
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-400">Your Full Name</label>
+          <input id="subName" type="text" placeholder="Alex Developer" value="Alex Developer"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-400">Your Email</label>
+          <input id="subEmail" type="email" placeholder="alex@company.com" value="alex@company.com"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-400">Select Plan</label>
+          <select id="subPlan" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+            <option value="starter">Starter - ₹999/mo (10,000 translations)</option>
+            <option value="growth">Growth - ₹2,999/mo (50,000 translations)</option>
+            <option value="enterprise">Scale - ₹9,999/mo (250,000 translations)</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="btnPay" onclick="initiateRazorpayCheckout()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5">
+        <span>Proceed to Razorpay Checkout</span>
+      </button>
+
+      <div id="issuedKeyBox" class="hidden p-3 bg-slate-950 rounded-lg border border-emerald-500/50 space-y-2">
+        <div class="text-xs font-semibold text-emerald-400">🎉 API Key Issued Successfully!</div>
+        <div class="text-[11px] text-slate-400">Save this key now. It is active immediately:</div>
+        <code id="issuedKeyText" class="block text-xs font-mono text-sky-300 bg-slate-900 p-2 rounded border border-slate-800 break-all select-all"></code>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const maxWidthInput = document.getElementById('maxWidth');
+    const fontSizeInput = document.getElementById('fontSize');
+    const widthVal = document.getElementById('widthVal');
+    const fontSizeVal = document.getElementById('fontSizeVal');
+    const sourceTextInput = document.getElementById('sourceText');
+    const btnRun = document.getElementById('btnRun');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const jsonViewer = document.getElementById('jsonViewer');
+    const latencyBadge = document.getElementById('latencyBadge');
+
+    maxWidthInput.addEventListener('input', (e) => {
+      widthVal.textContent = e.target.value;
+      triggerLocalize();
+    });
+
+    fontSizeInput.addEventListener('input', (e) => {
+      fontSizeVal.textContent = e.target.value;
+      triggerLocalize();
+    });
+
+    sourceTextInput.addEventListener('change', triggerLocalize);
+    btnRun.addEventListener('click', triggerLocalize);
+    document.querySelectorAll('.locale-check').forEach(c => c.addEventListener('change', triggerLocalize));
+
+    async function triggerLocalize() {
+      const selectedLocales = Array.from(document.querySelectorAll('.locale-check:checked')).map(c => c.value);
+      if (selectedLocales.length === 0) return;
+
+      const payload = {
+        source_text: sourceTextInput.value,
+        source_locale: "en-US",
+        target_locales: selectedLocales,
+        ui_context: {
+          element_type: "button",
+          max_width_px: parseFloat(maxWidthInput.value),
+          font_size_px: parseFloat(fontSizeInput.value),
+          font_weight: 400
+        },
+        glossary_id: "gls_prod_992"
+      };
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch('/v1/localize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const elapsed = (performance.now() - t0).toFixed(1);
+        latencyBadge.textContent = `Latency: ${elapsed}ms`;
+
+        if (!res.ok) {
+          jsonViewer.textContent = `Error: ${res.statusText}`;
+          return;
+        }
+
+        const data = await res.json();
+        jsonViewer.textContent = JSON.stringify(data, null, 2);
+        renderCards(data, payload.ui_context);
+      } catch (err) {
+        jsonViewer.textContent = `Fetch error: ${err.message}`;
+      }
+    }
+
+    function renderCards(data, uiContext) {
+      resultsGrid.innerHTML = '';
+      const targetWidth = uiContext.max_width_px;
+      const targetFontSize = uiContext.font_size_px;
+
+      for (const [locale, item] of Object.entries(data.results)) {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow";
+
+        const fits = item.metrics.fits_container;
+        const variant = item.variant_used;
+        const overflow = item.overflow_prevented;
+
+        let badgeColor = "bg-emerald-950 text-emerald-400 border-emerald-800";
+        let badgeText = "FITS CONTAINER";
+
+        if (overflow) {
+          badgeColor = "bg-amber-950 text-amber-300 border-amber-800";
+          badgeText = `OVERFLOW PREVENTED (${variant})`;
+        }
+        if (!fits) {
+          badgeColor = "bg-rose-950 text-rose-300 border-rose-800";
+          badgeText = `OVERFLOW (SCALE: ${item.metrics.recommended_font_scale}x)`;
+        }
+
+        let fontClass = "inter-font";
+        if (locale.startsWith("ur")) fontClass = "urdu-font";
+        else if (locale.startsWith("ar")) fontClass = "arabic-font";
+        else if (locale.startsWith("ja")) fontClass = "jp-font";
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold text-slate-300">${locale}</span>
+              <span class="text-xs px-2 py-0.5 rounded font-mono font-bold border ${badgeColor}">
+                ${badgeText}
+              </span>
+            </div>
+
+            <!-- Simulated Button Container -->
+            <div class="p-3 bg-slate-950 rounded-lg border border-slate-800/80 mb-3 flex flex-col items-center">
+              <div class="text-xs text-slate-500 mb-1.5 font-mono">Container: ${targetWidth}px wide</div>
+              <div style="width: ${targetWidth}px; max-width: 100%;" class="border border-dashed border-indigo-500/40 p-1 flex justify-center">
+                <button
+                  dir="${item.css_rules.dir}"
+                  class="w-full bg-gradient-to-r from-indigo-600 to-sky-600 hover:brightness-110 text-white rounded px-2 text-center truncate ${fontClass}"
+                  style="
+                    font-size: ${targetFontSize}px;
+                    line-height: ${item.css_rules.line_height};
+                    letter-spacing: ${item.css_rules.letter_spacing};
+                  "
+                >
+                  ${item.ui_safe_text}
+                </button>
+              </div>
+            </div>
+
+            <!-- Metrics details -->
+            <div class="text-xs space-y-1 text-slate-400 font-mono">
+              <div class="flex justify-between">
+                <span>Shaped Width:</span>
+                <span class="text-slate-200 font-semibold">${item.metrics.measured_width_px}px</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Variant Used:</span>
+                <span class="text-indigo-300">${variant}</span>
+              </div>
+              ${overflow ? `
+                <div class="p-2 bg-amber-950/40 border border-amber-900/50 rounded text-xs text-amber-300 mt-2 font-sans">
+                  <strong>Saved Layout:</strong> Full text <em>"${overflow.rejected_full_text}"</em> was <strong>${overflow.rejected_width_px}px</strong> and would have clipped!
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-500">
+            <span>CSS dir: <code>${item.css_rules.dir}</code></span>
+            <span>BiDi: <code>Safe Isolates</code></span>
+          </div>
+        `;
+        resultsGrid.appendChild(card);
+      }
+    }
+
+    // Modal & Checkout logic
+    function openPricingModal() {
+      document.getElementById('pricingModal').classList.remove('hidden');
+    }
+    function closePricingModal() {
+      document.getElementById('pricingModal').classList.add('hidden');
+    }
+
+    async function initiateRazorpayCheckout() {
+      const name = document.getElementById('subName').value;
+      const email = document.getElementById('subEmail').value;
+      const plan = document.getElementById('subPlan').value;
+      const btnPay = document.getElementById('btnPay');
+
+      btnPay.disabled = true;
+      btnPay.textContent = "Connecting to Razorpay...";
+
+      try {
+        const orderRes = await fetch('/v1/billing/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: plan, email: email, name: name })
+        });
+        const orderData = await orderRes.json();
+
+        // If real Razorpay key is configured, open official Razorpay Checkout popup
+        if (orderData.key_id && !orderData.key_id.includes("placeholder")) {
+          const options = {
+            key: orderData.key_id,
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: "Polyglot Engine",
+            description: `${orderData.plan_name} (${orderData.monthly_quota.toLocaleString()} API calls)`,
+            order_id: orderData.order_id,
+            handler: async function (response) {
+              await verifyAndIssue(response, plan, email, name);
+            },
+            prefill: { name: name, email: email }
+          };
+          const rzp = new Razorpay(options);
+          rzp.open();
+        } else {
+          // Dev / simulation mode verification
+          const dummyResponse = {
+            razorpay_order_id: orderData.order_id,
+            razorpay_payment_id: "pay_simulated_" + Math.random().toString(36).substring(7),
+            razorpay_signature: "sig_simulated"
+          };
+          await verifyAndIssue(dummyResponse, plan, email, name);
+        }
+      } catch (err) {
+        alert("Payment initialization failed: " + err.message);
+      } finally {
+        btnPay.disabled = false;
+        btnPay.textContent = "Proceed to Razorpay Checkout";
+      }
+    }
+
+    async function verifyAndIssue(paymentDetails, plan, email, name) {
+      const res = await fetch('/v1/billing/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          razorpay_order_id: paymentDetails.razorpay_order_id,
+          razorpay_payment_id: paymentDetails.razorpay_payment_id,
+          razorpay_signature: paymentDetails.razorpay_signature,
+          plan_id: plan,
+          email: email,
+          name: name
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('issuedKeyBox').classList.remove('hidden');
+        document.getElementById('issuedKeyText').textContent = data.api_key;
+      } else {
+        alert("Verification error: " + data.detail);
+      }
+    }
+
+    // Initial run on load
+    triggerLocalize();
+  </script>
+</body>
+</html>

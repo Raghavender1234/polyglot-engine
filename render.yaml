@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: polyglot-engine
+    env: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: Dockerfile
+    healthCheckPath: /v1/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: ENV
+        value: production
