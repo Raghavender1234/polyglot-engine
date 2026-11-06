@@ -129,7 +129,7 @@ def localize_endpoint(
 
     try:
         for target_locale in req.target_locales:
-            # Cache key includes all variables: source_locale, target_locale, max_width, font_size, font_weight, padding_x, glossary
+            # Cache key includes all variables: source_locale, target_locale, max_width, font_size, font_weight, padding_x, glossary, bypass_presets
             cache_key = db.generate_cache_key(
                 source_text=req.source_text,
                 source_locale=req.source_locale,
@@ -138,19 +138,23 @@ def localize_endpoint(
                 font_size_px=req.ui_context.font_size_px,
                 font_weight=req.ui_context.font_weight,
                 padding_x_px=req.ui_context.padding_x_px,
-                glossary_id=req.glossary_id
+                glossary_id=req.glossary_id,
+                bypass_presets=req.bypass_presets
             )
             cached_result = db.get_cache(cache_key)
             if cached_result:
+                if "provenance" not in cached_result:
+                    cached_result["provenance"] = "OPENAI_API" if req.bypass_presets else "PRESET"
                 results[target_locale] = LocaleResult(**cached_result)
                 continue
 
             # 1. Fetch 3 length variants (1-pass LLM call or instant cache/preset)
-            variants = llm_engine.translate_with_variants(
+            variants, provenance = llm_engine.translate_with_variants(
                 source_text=req.source_text,
                 source_locale=req.source_locale,
                 target_locale=target_locale,
-                glossary=glossary
+                glossary=glossary,
+                bypass_presets=req.bypass_presets
             )
 
             # 2. Shape and measure all 3 variants with HarfBuzz
@@ -213,6 +217,7 @@ def localize_endpoint(
                 raw_text=chosen_text,
                 ui_safe_text=ui_safe_text,
                 variant_used=variant_used,
+                provenance=provenance,
                 overflow_prevented=overflow_prevented,
                 metrics=Metrics(
                     measured_width_px=chosen_width,

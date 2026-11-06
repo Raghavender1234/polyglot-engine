@@ -14,6 +14,7 @@ class LocalizeRequest(BaseModel):
     target_locales: List[str] = Field(..., description="List of target locales (e.g. ['ur-PK', 'de-DE', 'ar-SA', 'ja-JP'])")
     ui_context: UIContext = Field(..., description="UI layout constraints")
     glossary_id: Optional[str] = Field(default=None, description="Optional customer locked glossary ID")
+    bypass_presets: bool = Field(default=False, description="When True, bypasses preset dictionaries and forces live AI translation via OpenAI API")
 
 class TranslationVariants(BaseModel):
     standard: str = Field(..., description="Natural, grammatically full translation")
@@ -43,6 +44,7 @@ class LocaleResult(BaseModel):
     raw_text: str
     ui_safe_text: str
     variant_used: str
+    provenance: str = Field(default="OPENAI_API", description="Translation source: OPENAI_API, PRESET, PSEUDO, or FALLBACK")
     overflow_prevented: Optional[OverflowPrevented] = None
     metrics: Metrics
     css_rules: CSSRules

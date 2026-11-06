@@ -17,6 +17,12 @@ from pathlib import Path
 from html.parser import HTMLParser
 from typing import Dict, Any, List, Optional
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -260,6 +266,107 @@ JS_APPLY_AND_REMEASURE = """
 }
 """
 
+JS_APPLY_ALL_AND_CHECK_PAGE_INTEGRITY = """
+(payload) => {
+    function findTargetTextNode(element) {
+        const explicitTextEl = element.querySelector('[data-polyglot-text]') || (element.hasAttribute('data-polyglot-text') ? element : null);
+        if (explicitTextEl) {
+            const walker = document.createTreeWalker(explicitTextEl, NodeFilter.SHOW_TEXT, null, false);
+            let n;
+            while ((n = walker.nextNode())) {
+                if (n.textContent.trim().length > 0) return n;
+            }
+        }
+        for (let i = 0; i < element.childNodes.length; i++) {
+            const child = element.childNodes[i];
+            if (child.nodeType === Node.TEXT_NODE && child.textContent.trim().length > 0) return child;
+        }
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        let target = null, maxLen = 0, node;
+        while ((node = walker.nextNode())) {
+            const trimmed = node.textContent.trim();
+            if (trimmed.length > maxLen) {
+                maxLen = trimmed.length;
+                target = node;
+            }
+        }
+        return target;
+    }
+
+    const isRtl = payload.locale.toLowerCase().startsWith('ar') || payload.locale.toLowerCase().startsWith('ur') || payload.locale.toLowerCase().startsWith('he');
+    if (isRtl) {
+        document.documentElement.dir = 'rtl';
+    } else {
+        document.documentElement.dir = 'ltr';
+    }
+
+    const applied = [];
+    for (const item of payload.repairs) {
+        const el = document.querySelector('[data-polyglot-id="' + item.id + '"]');
+        if (!el) continue;
+
+        const textNode = findTargetTextNode(el);
+        if (textNode) {
+            textNode.textContent = item.newText;
+        } else {
+            el.textContent = item.newText;
+        }
+
+        if (item.cssRules) {
+            if (item.cssRules.dir) el.dir = item.cssRules.dir;
+            if (item.cssRules.line_height) el.style.lineHeight = item.cssRules.line_height;
+            if (item.cssRules.font_family) el.style.fontFamily = item.cssRules.font_family;
+        }
+        applied.push(el);
+    }
+
+    void document.body.offsetHeight;
+
+    // Check for bounding box collisions between distinct sibling/adjacent elements
+    const collisions = [];
+    const boxes = [];
+    for (const el of applied) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 2 && r.height > 2) {
+            boxes.push({ el, rect: r, text: (el.innerText || '').trim() });
+        }
+    }
+
+    for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+            const b1 = boxes[i];
+            const b2 = boxes[j];
+
+            if (b1.el.contains(b2.el) || b2.el.contains(b1.el)) continue;
+
+            const r1 = b1.rect;
+            const r2 = b2.rect;
+
+            const overlapX = Math.max(0, Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left));
+            const overlapY = Math.max(0, Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top));
+
+            // Collision detected if overlap exceeds 4px both horizontally and vertically
+            if (overlapX > 4 && overlapY > 4) {
+                collisions.push({
+                    elem1: b1.el.tagName.toLowerCase(),
+                    text1: b1.text.substring(0, 25),
+                    elem2: b2.el.tagName.toLowerCase(),
+                    text2: b2.text.substring(0, 25),
+                    overlapArea: Math.round(overlapX * overlapY)
+                });
+            }
+        }
+    }
+
+    return {
+        appliedCount: applied.length,
+        collisionsDetected: collisions.length,
+        collisions: collisions,
+        pageIntegrityPass: collisions.length === 0
+    };
+}
+"""
+
 
 # --- 3. ROOT-CAUSE DIAGNOSIS ---
 def classify_root_cause(
@@ -314,6 +421,11 @@ def classify_root_cause(
 
 # --- 4. HTML AUDIT REPORT GENERATOR ---
 def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
+    prov_counts = summary.get("provenance_counts", {})
+    api_cnt = prov_counts.get("OPENAI_API", 0)
+    preset_cnt = prov_counts.get("PRESET", 0)
+    pseudo_cnt = prov_counts.get("PSEUDO", 0)
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -321,11 +433,12 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
   <title>Polyglot Engine — Layout Audit & Diagnosis Report</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 32px; }}
-    .container {{ max-width: 1100px; margin: 0 auto; }}
+    .container {{ max-width: 1180px; margin: 0 auto; }}
     .header {{ border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }}
     .header h1 {{ margin: 0; font-size: 24px; color: #60a5fa; }}
-    .badge {{ background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 12px; font-size: 12px; color: #94a3b8; }}
-    .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }}
+    .badge {{ background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 5px 14px; font-size: 12px; color: #94a3b8; font-weight: 600; }}
+    .badge-live {{ border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.1); }}
+    .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }}
     .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }}
     .card .val {{ font-size: 28px; font-weight: 700; margin-top: 6px; }}
     .card.blue .val {{ color: #60a5fa; }}
@@ -333,13 +446,18 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
     .card.green .val {{ color: #10b981; }}
     .card.orange .val {{ color: #f97316; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 16px; background: #1e293b; border-radius: 10px; overflow: hidden; }}
-    th, td {{ padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }}
+    th, td {{ padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }}
     th {{ background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }}
     .tag {{ background: #334155; border-radius: 4px; padding: 2px 6px; font-family: monospace; }}
     .badge-diag {{ font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; }}
     .badge-purple {{ background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }}
     .badge-orange {{ background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }}
     .badge-cyan {{ background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }}
+    .badge-source {{ font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; font-family: monospace; text-transform: uppercase; }}
+    .badge-source-api {{ background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }}
+    .badge-source-preset {{ background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); }}
+    .badge-source-pseudo {{ background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }}
+    .badge-source-fallback {{ background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }}
     .status-fit {{ color: #10b981; font-weight: 600; }}
     .status-overflow {{ color: #f59e0b; font-weight: 600; }}
     .status-intervene {{ color: #f97316; font-weight: 600; }}
@@ -352,7 +470,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: {summary['target']} | Tested Locales: {', '.join(summary['locales'])}</div>
       </div>
-      <div class="badge">{summary.get('mode_label', 'Engine v1.2.0')}</div>
+      <div class="badge {'badge-live' if api_cnt > 0 else ''}">{summary.get('mode_label', 'Engine v1.2.0')}</div>
     </div>
 
     <div class="grid">
@@ -374,6 +492,35 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
       </div>
     </div>
 
+    <!-- Whole-Page Visual Integrity & Collision Test -->
+    <div class="card" style="margin-bottom: 24px; border-left: 4px solid #10b981;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 700; color: #60a5fa;">🌐 Whole-Page Multi-Element Collision & Visual Integrity Test</div>
+        <span class="badge badge-live">Live Chromium Reflow Test</span>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.5;">
+        All candidate repairs were applied <strong>simultaneously across the live browser DOM</strong> to verify that repairing one element never displaces or overlaps adjacent navigation or sibling containers.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; background: #0f172a; padding: 12px 16px; border-radius: 8px;">
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Concurrently Swapped Elements</div>
+          <div style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 4px;">{summary.get('whole_page_integrity', {}).get('applied_count', 0)}</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Inter-Element Overlaps / Collisions</div>
+          <div style="font-size: 18px; font-weight: 700; color: {'#10b981' if summary.get('whole_page_integrity', {}).get('collisions_detected', 0) == 0 else '#ef4444'}; margin-top: 4px;">
+            {summary.get('whole_page_integrity', {}).get('collisions_detected', 0)} detected ({'✅ 100% Visual Integrity' if summary.get('whole_page_integrity', {}).get('collisions_detected', 0) == 0 else '⚠️ Collisions Found'})
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Translation Provenance Breakdown</div>
+          <div style="font-size: 13px; font-weight: 600; color: #34d399; margin-top: 6px;">
+            {api_cnt} OpenAI API ({round(api_cnt / max(len(summary.get('findings', [])), 1) * 100)}%) / {preset_cnt} Presets
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h2 style="font-size: 18px; margin-bottom: 12px;">Component Layout Audit & Diagnosis Log</h2>
     <table>
       <thead>
@@ -381,6 +528,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
           <th>Component</th>
           <th>Original Text</th>
           <th>Locale</th>
+          <th>Provenance</th>
           <th>Diagnosis</th>
           <th>Container vs Overflow</th>
           <th>Live Browser Swap / Action</th>
@@ -400,6 +548,16 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
         headroom = avail_w - meas_w
         browser_fits = item.get("browser_verified", headroom >= 0)
 
+        prov = item.get("provenance", "OPENAI_API")
+        if prov == "OPENAI_API":
+            prov_cls = "badge-source-api"
+        elif prov == "PRESET":
+            prov_cls = "badge-source-preset"
+        elif prov == "FALLBACK":
+            prov_cls = "badge-source-fallback"
+        else:
+            prov_cls = "badge-source-pseudo"
+
         if browser_fits and headroom >= 0:
             status_html = f'<span class="status-fit">✅ Live Browser Fit (+{headroom:.1f}px headroom)</span>'
         elif browser_fits and headroom < 0:
@@ -412,6 +570,7 @@ def generate_html_audit_report(summary: Dict[str, Any], output_path: str):
           <td><span class="tag">&lt;{item['element']}&gt;</span></td>
           <td>{item['text']}</td>
           <td><strong>{item['locale']}</strong></td>
+          <td><span class="badge-source {prov_cls}">{prov}</span></td>
           <td><span class="badge-diag {badge_cls}">{cat}</span></td>
           <td class="status-overflow">{item['container_max_width_px']}px limit<br><small style="color: #94a3b8;">+{item['rejected_width_px'] - item['container_max_width_px']:.1f}px overflow</small></td>
           <td><strong>{fix}</strong><br><small style="color: #94a3b8;">Candidate: <code>{item['safe_repair']}</code></small></td>
@@ -440,6 +599,7 @@ def main():
     parser.add_argument("--api-key", default=os.getenv("POLYGLOT_API_KEY", ""), help="Polyglot Engine API Key (X-API-Key)")
     parser.add_argument("--locales", default="de-DE,ur-PK,ar-SA,ja-JP", help="Target locales to verify")
     parser.add_argument("--screenshots", help="Directory to save before/after screenshots", default=None)
+    parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset dictionaries and require live OpenAI API generation")
     parser.add_argument("--json", action="store_true", help="Output audit report as JSON")
     parser.add_argument("--report", help="Save interactive HTML audit report to specified path (e.g. audit.html)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose diagnostic details")
@@ -461,6 +621,8 @@ def main():
     overflows_found = 0
     repairs_verified = 0
     needs_intervention = 0
+    whole_page_applied = 0
+    whole_page_collisions = 0
     findings = []
     target_name = args.url or args.file or "static/index.html"
 
@@ -500,6 +662,8 @@ def main():
                         if not args.json and args.verbose:
                             print(f"🌐 [{vp['name']}] Scanned {len(elements)} items on {full_url}")
 
+                        page_repairs = {loc: [] for loc in target_locales}
+
                         for el in elements:
                             text = el["text"]
                             max_w = el["contentWidth"]
@@ -508,6 +672,7 @@ def main():
                                 "source_text": text,
                                 "source_locale": "en-US",
                                 "target_locales": target_locales,
+                                "bypass_presets": args.bypass_presets,
                                 "ui_context": {
                                     "element_type": "button" if "button" in el["tag"] else "general",
                                     "max_width_px": max_w,
@@ -518,15 +683,23 @@ def main():
 
                             try:
                                 req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers)
-                                with urllib.request.urlopen(req, timeout=5) as resp:
+                                with urllib.request.urlopen(req, timeout=10) as resp:
                                     data = json.loads(resp.read().decode("utf-8"))
 
                                     for loc in target_locales:
                                         res = data["results"][loc]
+                                        prov = res.get("provenance", "OPENAI_API" if args.bypass_presets else "PRESET")
                                         if res.get("overflow_prevented"):
                                             overflows_found += 1
                                             safe_text = res["ui_safe_text"]
                                             css_rules = res.get("css_rules", {})
+
+                                            # Collect repair for whole-page application test
+                                            page_repairs[loc].append({
+                                                "id": el["id"],
+                                                "newText": safe_text,
+                                                "cssRules": css_rules
+                                            })
 
                                             # --- LIVE IN-BROWSER REMEASUREMENT ---
                                             # Apply the translation directly in the Playwright browser DOM and remeasure
@@ -559,6 +732,7 @@ def main():
                                                 "element": el["tag"],
                                                 "text": text,
                                                 "locale": loc,
+                                                "provenance": prov,
                                                 "container_max_width_px": round(max_w, 1),
                                                 "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
                                                 "safe_repair": safe_text,
@@ -569,10 +743,29 @@ def main():
 
                                             if not args.json:
                                                 fit_status = "✅ BROWSER FIT" if browser_fits else "⚠️ INTERVENE"
-                                                print(f"  [{loc}] <{el['tag']}> '{text[:30]}' -> {fit_status} ({diag['category']})")
+                                                print(f"  [{loc}] [{prov}] <{el['tag']}> '{text[:25]}' -> {fit_status} ({diag['category']})")
                             except Exception as e:
                                 if args.verbose:
                                     print(f"⚠️ API error for '{text[:20]}': {e}")
+
+                        # --- WHOLE-PAGE INTEGRITY & COLLISION TEST ---
+                        # Simultaneously apply all translations across the entire page DOM
+                        for loc in target_locales:
+                            repairs_for_loc = page_repairs.get(loc, [])
+                            if repairs_for_loc:
+                                res_integrity = page.evaluate(JS_APPLY_ALL_AND_CHECK_PAGE_INTEGRITY, {
+                                    "repairs": repairs_for_loc,
+                                    "locale": loc
+                                })
+                                if res_integrity:
+                                    whole_page_applied += res_integrity.get("appliedCount", 0)
+                                    whole_page_collisions += res_integrity.get("collisionsDetected", 0)
+                                    if args.screenshots:
+                                        slug = re.sub(r'[^a-zA-Z0-9]', '_', route.strip("/")) or "root"
+                                        page.screenshot(path=os.path.join(args.screenshots, f"{slug}_{loc}_{vp['name']}_fullpage_repaired.png"))
+                                    if not args.json:
+                                        col_txt = "✅ 0 Collisions (Siblings & Navigation Preserved)" if res_integrity.get("collisionsDetected", 0) == 0 else f"⚠️ {res_integrity.get('collisionsDetected', 0)} Collisions"
+                                        print(f"  🌐 [Whole-Page {loc}] Applied {res_integrity.get('appliedCount', 0)} elements concurrently -> {col_txt}")
 
                         page.close()
                 browser.close()
@@ -611,14 +804,16 @@ def main():
                 "source_text": text,
                 "source_locale": "en-US",
                 "target_locales": target_locales,
+                "bypass_presets": args.bypass_presets,
                 "ui_context": {"element_type": "button", "max_width_px": max_w, "font_size_px": 14.0, "font_weight": 500}
             }
             try:
                 req = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers)
-                with urllib.request.urlopen(req, timeout=5) as resp:
+                with urllib.request.urlopen(req, timeout=10) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     for loc in target_locales:
                         res = data["results"][loc]
+                        prov = res.get("provenance", "OPENAI_API" if args.bypass_presets else "PRESET")
                         if res.get("overflow_prevented"):
                             overflows_found += 1
                             m_w = res['metrics']['measured_width_px']
@@ -630,6 +825,7 @@ def main():
                             diag = classify_root_cause(el["tag"], max_w, res['overflow_prevented']['rejected_width_px'], m_w, text, loc)
                             findings.append({
                                 "element": el["tag"], "text": text, "locale": loc,
+                                "provenance": prov,
                                 "container_max_width_px": round(max_w, 1),
                                 "rejected_width_px": round(res['overflow_prevented']['rejected_width_px'], 1),
                                 "safe_repair": res['raw_text'],
@@ -641,8 +837,24 @@ def main():
                 if args.verbose:
                     print(f"⚠️ Fallback parse error: {e}")
 
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
-    mode_label = "Mode: Neural Localization (GPT-4o-mini & HarfBuzz)" if has_openai else "Mode: I18N Pseudo-Localization Stress-Test (+35% Accented Expansion)"
+    # Calculate exact Provenance Breakdown
+    prov_counts = {}
+    for f in findings:
+        p = f.get("provenance", "UNKNOWN")
+        prov_counts[p] = prov_counts.get(p, 0) + 1
+
+    api_count = prov_counts.get("OPENAI_API", 0)
+    preset_count = prov_counts.get("PRESET", 0)
+    pseudo_count = prov_counts.get("PSEUDO", 0)
+
+    if api_count > 0 and preset_count == 0:
+        mode_label = f"Mode: 100% Neural AI Translation (OpenAI GPT-4o-mini — {api_count} API Calls, 0 Presets)"
+    elif api_count > 0:
+        mode_label = f"Mode: Neural Translation (OpenAI GPT-4o-mini & HarfBuzz) — {api_count} API / {preset_count} Preset"
+    elif preset_count > 0:
+        mode_label = f"Mode: Offline High-Quality Presets ({preset_count} Presets)"
+    else:
+        mode_label = f"Mode: I18N Pseudo-Localization Stress-Test (+35% Accented Expansion)"
 
     summary = {
         "target": target_name,
@@ -652,6 +864,11 @@ def main():
         "overflows_detected": overflows_found,
         "repairs_verified": repairs_verified,
         "needs_intervention": needs_intervention,
+        "provenance_counts": prov_counts,
+        "whole_page_integrity": {
+            "applied_count": whole_page_applied,
+            "collisions_detected": whole_page_collisions
+        },
         "findings": findings
     }
 
@@ -664,7 +881,13 @@ def main():
         print(f"  • Layout Overflows Caught & Blocked:  {overflows_found}")
         print(f"  • Verified Live Browser Repairs:      {repairs_verified}")
         print(f"  • Requiring Developer Intervention:   {needs_intervention}")
+        print(f"  • Whole-Page Concurrently Swapped:    {whole_page_applied}")
+        print(f"  • Whole-Page Inter-Element Collisions: {whole_page_collisions}")
+        print(f"  • Provenance Breakdown:               {api_count} OpenAI API, {preset_count} Preset, {pseudo_count} Pseudo")
         print("=" * 75)
+
+    if args.report:
+        generate_html_audit_report(summary, args.report)
 
     if args.report:
         generate_html_audit_report(summary, args.report)

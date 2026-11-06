@@ -1,9 +1,15 @@
 import os
 import json
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from openai import OpenAI
 from ..models import TranslationVariants
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # Offline high-quality presets for zero-latency testing, demo environments, and common UI vocabulary
 PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
@@ -208,14 +214,16 @@ class LLMTranslator:
         source_text: str,
         source_locale: str,
         target_locale: str,
-        glossary: Optional[Dict[str, str]] = None
-    ) -> TranslationVariants:
+        glossary: Optional[Dict[str, str]] = None,
+        bypass_presets: bool = False
+    ) -> Tuple[TranslationVariants, str]:
         clean_key = source_text.strip().lower()
         clean_locale = target_locale.lower().replace("_", "-")
 
-        # 1. Check offline high-quality presets first (instant 0ms, authentic translations)
-        if clean_key in PRESET_TRANSLATIONS and clean_locale in PRESET_TRANSLATIONS[clean_key]:
-            return PRESET_TRANSLATIONS[clean_key][clean_locale]
+        # 1. Check offline high-quality presets first (unless bypass_presets is explicitly enabled)
+        if not bypass_presets:
+            if clean_key in PRESET_TRANSLATIONS and clean_locale in PRESET_TRANSLATIONS[clean_key]:
+                return PRESET_TRANSLATIONS[clean_key][clean_locale], "PRESET"
 
         # 2. If OpenAI client is available, call gpt-4o-mini with structured outputs
         client = self.get_client()
@@ -246,11 +254,14 @@ class LLMTranslator:
                     response_format=TranslationVariants,
                     temperature=0.2,
                 )
-                return completion.choices[0].message.parsed
+                parsed = completion.choices[0].message.parsed
+                if parsed:
+                    return parsed, "OPENAI_API"
             except Exception as e:
                 print(f"[LLMTranslator] OpenAI call failed: {e}. Falling back to pseudo-localization.")
+                return generate_pseudoloc_variants(source_text, target_locale), "FALLBACK"
 
         # 3. Fallback: Standard I18N Pseudo-Localization Engine (stress-tests layout without deceptive word truncation)
-        return generate_pseudoloc_variants(source_text, target_locale)
+        return generate_pseudoloc_variants(source_text, target_locale), "PSEUDO"
 
 llm_engine = LLMTranslator()

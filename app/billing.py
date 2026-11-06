@@ -23,14 +23,16 @@ class RazorpayBilling:
         self.webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET")
         self.is_production = os.getenv("ENV", "development").lower() == "production"
         self._client = None
-        if razorpay and self.key_id and self.key_secret:
+        is_placeholder = (self.key_id or "").startswith("rzp_test_your_key_id") or (self.key_secret or "").startswith("your_key_secret")
+        if razorpay and self.key_id and self.key_secret and not is_placeholder:
             self._client = razorpay.Client(auth=(self.key_id, self.key_secret))
 
     def get_client(self):
         if not self._client and razorpay:
             self.key_id = os.getenv("RAZORPAY_KEY_ID")
             self.key_secret = os.getenv("RAZORPAY_KEY_SECRET")
-            if self.key_id and self.key_secret:
+            is_placeholder = (self.key_id or "").startswith("rzp_test_your_key_id") or (self.key_secret or "").startswith("your_key_secret")
+            if self.key_id and self.key_secret and not is_placeholder:
                 self._client = razorpay.Client(auth=(self.key_id, self.key_secret))
         return self._client
 

@@ -110,7 +110,8 @@ class Database:
         font_size_px: float,
         font_weight: int,
         padding_x_px: float = 0.0,
-        glossary_id: Optional[str] = None
+        glossary_id: Optional[str] = None,
+        bypass_presets: bool = False
     ) -> str:
         raw = (
             f"{source_text.strip()}|"
@@ -120,7 +121,8 @@ class Database:
             f"{font_size_px:.1f}|"
             f"{font_weight}|"
             f"{padding_x_px:.1f}|"
-            f"{glossary_id or ''}"
+            f"{glossary_id or ''}|"
+            f"{'bypass' if bypass_presets else 'default'}"
         )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 

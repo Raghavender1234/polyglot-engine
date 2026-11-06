@@ -74,3 +74,26 @@ def test_localize_urdu_bidi_and_css():
     assert ur_result["css_rules"]["line_height"] == "1.85"
     # BiDi check
     assert "\u2067" in ur_result["ui_safe_text"]
+    assert ur_result.get("provenance") in ["PRESET", "OPENAI_API", "PSEUDO"]
+
+def test_localize_bypass_presets_provenance():
+    payload = {
+        "source_text": "Products",
+        "source_locale": "en-US",
+        "target_locales": ["de-DE"],
+        "bypass_presets": True,
+        "ui_context": {
+            "element_type": "nav_link",
+            "max_width_px": 200.0,
+            "font_size_px": 14.0,
+            "font_weight": 400
+        }
+    }
+    res = client.post("/v1/localize", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "de-DE" in data["results"]
+    de = data["results"]["de-DE"]
+    # When bypass_presets is True, it must not be PRESET
+    assert de.get("provenance") in ["OPENAI_API", "PSEUDO", "FALLBACK"]
+    assert de.get("provenance") != "PRESET"

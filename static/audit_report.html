@@ -5,11 +5,12 @@
   <title>Polyglot Engine — Layout Audit & Diagnosis Report</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 32px; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1180px; margin: 0 auto; }
     .header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
     .header h1 { margin: 0; font-size: 24px; color: #60a5fa; }
-    .badge { background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 4px 12px; font-size: 12px; color: #94a3b8; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .badge { background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 5px 14px; font-size: 12px; color: #94a3b8; font-weight: 600; }
+    .badge-live { border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.1); }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 18px; }
     .card .val { font-size: 28px; font-weight: 700; margin-top: 6px; }
     .card.blue .val { color: #60a5fa; }
@@ -17,13 +18,18 @@
     .card.green .val { color: #10b981; }
     .card.orange .val { color: #f97316; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; background: #1e293b; border-radius: 10px; overflow: hidden; }
-    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
     th { background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
     .tag { background: #334155; border-radius: 4px; padding: 2px 6px; font-family: monospace; }
     .badge-diag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
     .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
     .badge-orange { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
     .badge-cyan { background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .badge-source { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; font-family: monospace; text-transform: uppercase; }
+    .badge-source-api { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-source-preset { background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); }
+    .badge-source-pseudo { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-source-fallback { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
     .status-fit { color: #10b981; font-weight: 600; }
     .status-overflow { color: #f59e0b; font-weight: 600; }
     .status-intervene { color: #f97316; font-weight: 600; }
@@ -36,7 +42,7 @@
         <h1>⚡ Polyglot Engine — Layout Audit & Diagnosis Report</h1>
         <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Target: http://127.0.0.1:8000/static/showcase.html | Tested Locales: de-DE, ar-SA, ur-PK</div>
       </div>
-      <div class="badge">Mode: I18N Pseudo-Localization Stress-Test (+35% Accented Expansion)</div>
+      <div class="badge badge-live">Mode: 100% Neural AI Translation (OpenAI GPT-4o-mini — 29 API Calls, 0 Presets)</div>
     </div>
 
     <div class="grid">
@@ -46,15 +52,44 @@
       </div>
       <div class="card amber">
         <div style="color: #94a3b8; font-size: 12px;">Layout Overflows Caught</div>
-        <div class="val">25</div>
+        <div class="val">29</div>
       </div>
       <div class="card green">
         <div style="color: #94a3b8; font-size: 12px;">Verified In-Browser Repairs</div>
-        <div class="val">15</div>
+        <div class="val">19</div>
       </div>
       <div class="card orange">
         <div style="color: #94a3b8; font-size: 12px;">Needs Intervention</div>
         <div class="val">10</div>
+      </div>
+    </div>
+
+    <!-- Whole-Page Visual Integrity & Collision Test -->
+    <div class="card" style="margin-bottom: 24px; border-left: 4px solid #10b981;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="font-size: 16px; font-weight: 700; color: #60a5fa;">🌐 Whole-Page Multi-Element Collision & Visual Integrity Test</div>
+        <span class="badge badge-live">Live Chromium Reflow Test</span>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin: 0 0 14px 0; line-height: 1.5;">
+        All candidate repairs were applied <strong>simultaneously across the live browser DOM</strong> to verify that repairing one element never displaces or overlaps adjacent navigation or sibling containers.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; background: #0f172a; padding: 12px 16px; border-radius: 8px;">
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Concurrently Swapped Elements</div>
+          <div style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 4px;">29</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Inter-Element Overlaps / Collisions</div>
+          <div style="font-size: 18px; font-weight: 700; color: #10b981; margin-top: 4px;">
+            0 detected (✅ 100% Visual Integrity)
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Translation Provenance Breakdown</div>
+          <div style="font-size: 13px; font-weight: 600; color: #34d399; margin-top: 6px;">
+            29 OpenAI API (100%) / 0 Presets
+          </div>
+        </div>
       </div>
     </div>
 
@@ -65,6 +100,7 @@
           <th>Component</th>
           <th>Original Text</th>
           <th>Locale</th>
+          <th>Provenance</th>
           <th>Diagnosis</th>
           <th>Container vs Overflow</th>
           <th>Live Browser Swap / Action</th>
@@ -74,9 +110,21 @@
       <tbody>
 
         <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">497px limit<br><small style="color: #94a3b8;">+129.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Null-Latenz lokalisierte Gestaltung mit HarfBuzz und automatischer Schlüsselvergabe.</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+9.0px headroom)</span></td>
+        </tr>
+
+        <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+63.1px overflow</small></td>
           <td><strong>Set 'min-width: 155px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>💳 Schlüssel holen</code></small></td>
@@ -87,6 +135,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+31.1px overflow</small></td>
           <td><strong>Set 'min-width: 160px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧💳 احصل على المفتاح⁩</code></small></td>
@@ -97,6 +146,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+95.4px overflow</small></td>
           <td><strong>Set 'min-width: 137px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧💳 کلید حاصل کریں⁩</code></small></td>
@@ -107,6 +157,7 @@
           <td><span class="tag">&lt;a&gt;</span></td>
           <td>Swagger Docs →</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+67.3px overflow</small></td>
           <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Swagger →</code></small></td>
@@ -117,6 +168,7 @@
           <td><span class="tag">&lt;h2&gt;</span></td>
           <td>Rendered Live UI Components</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">236px limit<br><small style="color: #94a3b8;">+112.6px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Live UI-Komponenten gerendert</code></small></td>
@@ -127,6 +179,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+8.2px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اشترِ ⁦-⁩ ⁦49.99$⁩⁩</code></small></td>
@@ -137,6 +190,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+61.7px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Kauf abschließen</code></small></td>
@@ -147,6 +201,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+3.4px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧إتمام الشراء⁩</code></small></td>
@@ -157,6 +212,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+31.6px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧خرید کریں⁩</code></small></td>
@@ -167,6 +223,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+61.7px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Kauf abschließen</code></small></td>
@@ -177,6 +234,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+25.9px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧أكمل الشراء⁩</code></small></td>
@@ -187,6 +245,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+7.5px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧خرید مکمل ⁦-⁩ ⁦$49.99⁩⁩</code></small></td>
@@ -194,9 +253,43 @@
         </tr>
 
         <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+283.6px overflow</small></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Null-Latenz Lokalisierung</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+46.0px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧توطين تخطيط فوري مع تشكيل بكسل ⁦HarfBuzz⁩ وإصدار مفاتيح آلي⁦.⁩⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="tag">&lt;p&gt;</span></td>
+          <td>Zero-latency layout-aware localization with HarfBuzz pixel shaping & automated key issuance.</td>
+          <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
+          <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
+          <td class="status-overflow">343px limit<br><small style="color: #94a3b8;">+94.1px overflow</small></td>
+          <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧زیرو لیٹنسی مقامی کاری⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+0.0px headroom)</span></td>
+        </tr>
+
+        <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+63.1px overflow</small></td>
           <td><strong>Set 'min-width: 155px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>💳 Schlüssel holen</code></small></td>
@@ -207,6 +300,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+31.1px overflow</small></td>
           <td><strong>Set 'min-width: 160px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧💳 احصل على المفتاح⁩</code></small></td>
@@ -217,6 +311,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>💳 Get API Key</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">84px limit<br><small style="color: #94a3b8;">+95.4px overflow</small></td>
           <td><strong>Set 'min-width: 137px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧💳 کلید حاصل کریں⁩</code></small></td>
@@ -227,6 +322,7 @@
           <td><span class="tag">&lt;a&gt;</span></td>
           <td>Swagger Docs →</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-orange">CSS_LAYOUT_CONSTRAINT</span></td>
           <td class="status-overflow">89px limit<br><small style="color: #94a3b8;">+67.3px overflow</small></td>
           <td><strong>Set 'min-width: 110px; flex-shrink: 0;' to prevent action clipping.</strong><br><small style="color: #94a3b8;">Candidate: <code>Swagger →</code></small></td>
@@ -237,6 +333,7 @@
           <td><span class="tag">&lt;h2&gt;</span></td>
           <td>Rendered Live UI Components</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">229px limit<br><small style="color: #94a3b8;">+119.6px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Live UI-Komponenten gerendert</code></small></td>
@@ -247,16 +344,18 @@
           <td><span class="tag">&lt;h2&gt;</span></td>
           <td>Rendered Live UI Components</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">229px limit<br><small style="color: #94a3b8;">+6.9px overflow</small></td>
-          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مكونات واجهة المستخدم المباشرة⁩</code></small></td>
-          <td><span class="status-fit">✅ Live Browser Fit (+21.0px headroom)</span></td>
+          <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧مكونات واجهة المستخدم الحية⁩</code></small></td>
+          <td><span class="status-fit">✅ Live Browser Fit (+43.0px headroom)</span></td>
         </tr>
 
         <tr>
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧خریدیں ⁦-⁩ ⁦$49.99⁩⁩</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+8.2px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧اشترِ ⁦-⁩ ⁦49.99$⁩⁩</code></small></td>
@@ -267,6 +366,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+61.7px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Kauf abschließen</code></small></td>
@@ -277,6 +377,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+3.4px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧إتمام الشراء⁩</code></small></td>
@@ -287,6 +388,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>⁧إتمام الشراء ⁦-⁩ ⁦49.99 $⁩⁩</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+31.6px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧خرید کریں⁩</code></small></td>
@@ -297,6 +399,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>de-DE</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-purple">TEXT_VERBOSITY</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+61.7px overflow</small></td>
           <td><strong>Swapped to HarfBuzz-verified compact variant.</strong><br><small style="color: #94a3b8;">Candidate: <code>Kauf abschließen</code></small></td>
@@ -307,6 +410,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>ar-SA</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+25.9px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧أكمل الشراء⁩</code></small></td>
@@ -317,6 +421,7 @@
           <td><span class="tag">&lt;button&gt;</span></td>
           <td>購入を完了 - $49.99</td>
           <td><strong>ur-PK</strong></td>
+          <td><span class="badge-source badge-source-api">OPENAI_API</span></td>
           <td><span class="badge-diag badge-cyan">BIDI_ISOLATION</span></td>
           <td class="status-overflow">119px limit<br><small style="color: #94a3b8;">+7.5px overflow</small></td>
           <td><strong>Wrapped with Unicode isolates (\u2066...\u2069) and dir='rtl'.</strong><br><small style="color: #94a3b8;">Candidate: <code>⁧خرید مکمل ⁦-⁩ ⁦$49.99⁩⁩</code></small></td>
