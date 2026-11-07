@@ -108,6 +108,30 @@ class RepairOrchestrator:
         initial_overflows = metrics_pass1["overflowCount"]
         initial_collisions = metrics_pass1["collisionCount"]
 
+        # Initial baseline diagnosis of all failures
+        el_map = {el["id"]: el for el in self.elements}
+        initial_diagnosed_issues = []
+        for ovf in metrics_pass1["overflows"]:
+            el = el_map.get(ovf["id"], {})
+            merged_el = {**el, **ovf}
+            diag = RootCauseDiagnoser.diagnose_overflow(merged_el, ovf["overflowPx"], self.locale)
+            diag["id"] = ovf["id"]
+            diag["selector"] = ovf["selector"]
+            diag["current_width"] = ovf.get("computedWidth", el.get("contentWidth", 60.0))
+            diag["overflow_px"] = ovf["overflowPx"]
+            initial_diagnosed_issues.append(diag)
+
+        for col in metrics_pass1["collisions"]:
+            el = el_map.get(col["translatedId"], {})
+            merged_el = {**el, **col}
+            diag = RootCauseDiagnoser.diagnose_collision(col, merged_el, {})
+            diag["id"] = col["translatedId"]
+            diag["selector"] = col["selector1"]
+            diag["collided_with"] = col.get("selector2", "")
+            diag["current_width"] = el.get("contentWidth", 60.0)
+            diag["overflow_px"] = col["overlapX"]
+            initial_diagnosed_issues.append(diag)
+
         failing_ids = set()
         for ovf in metrics_pass1["overflows"]:
             failing_ids.add(ovf["id"])
@@ -196,21 +220,31 @@ class RepairOrchestrator:
             final_metrics = CollisionDetector.detect(self.page, self.target_ids)
             final_overflows = final_metrics["overflowCount"]
             final_collisions = final_metrics["collisionCount"]
+            resolved_overflows = max(0, initial_overflows - final_overflows)
+            resolved_collisions = max(0, initial_collisions - final_collisions)
+            all_cleared = (final_overflows == 0 and final_collisions == 0)
+            verified_status = True
         else:
-            final_overflows = len(failing_ids)
-            final_collisions = 0
+            final_overflows = None
+            final_collisions = None
+            resolved_overflows = None
+            resolved_collisions = None
+            all_cleared = False
+            verified_status = False
 
         return {
             "strategy": self.strategy,
+            "verified": verified_status,
             "initial_overflows": initial_overflows,
             "initial_collisions": initial_collisions,
             "final_overflows": final_overflows,
             "final_collisions": final_collisions,
-            "resolved_overflows": max(0, initial_overflows - final_overflows),
-            "resolved_collisions": max(0, initial_collisions - final_collisions),
+            "resolved_overflows": resolved_overflows,
+            "resolved_collisions": resolved_collisions,
             "diagnosed_issues": diagnosed_issues,
+            "initial_diagnosed_issues": initial_diagnosed_issues,
             "dynamic_css": applied_css,
             "chosen_variants": chosen_variants,
             "active_texts": active_texts,
-            "all_cleared": (final_overflows == 0 and final_collisions == 0)
+            "all_cleared": all_cleared
         }

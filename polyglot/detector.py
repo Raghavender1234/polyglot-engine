@@ -140,6 +140,21 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
 
             // Genuine collision: significant physical overlap in both dimensions (>4px)
             if (overlapX > 4 && overlapY > 4) {
+                const area1 = r1.width * r1.height;
+                const area2 = r2.width * r2.height;
+                const overlapArea = overlapX * overlapY;
+                const minArea = Math.min(area1, area2);
+
+                // Filter nested decorative icons/glyphs inside interactive controls
+                const isIcon1 = /^(svg|path|i|img)$/i.test(item1.tag) || (typeof item1.el.className === 'string' && /(icon|glyph|avatar|symbol)/i.test(item1.el.className));
+                const isIcon2 = /^(svg|path|i|img)$/i.test(item2.tag) || (typeof item2.el.className === 'string' && /(icon|glyph|avatar|symbol)/i.test(item2.el.className));
+                if ((isIcon1 || isIcon2) && (overlapArea / minArea > 0.75)) continue;
+
+                // Filter fixed/sticky headers overlapping background scrolled elements
+                const isFixed1 = item1.style.position === 'fixed' || item1.style.position === 'sticky';
+                const isFixed2 = item2.style.position === 'fixed' || item2.style.position === 'sticky';
+                if ((isFixed1 !== isFixed2) && (item1.el.parentElement !== item2.el.parentElement)) continue;
+
                 const parent1 = item1.el.parentElement;
                 const parentStyle1 = parent1 ? window.getComputedStyle(parent1) : null;
 

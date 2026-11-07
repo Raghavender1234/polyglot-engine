@@ -95,8 +95,9 @@ def cmd_scan(args):
 
                     # 1. Discover Elements
                     raw_elements = DOMScanner.discover_elements(page)
-                    target_elements = raw_elements[:max_elements]
-                    print(f"🔍 Discovered {len(raw_elements)} UI candidates. Selected top {len(target_elements)} interactive targets.")
+                    target_elements = raw_elements[:max_elements] if (max_elements and max_elements > 0) else raw_elements
+                    skipped_count = max(0, len(raw_elements) - len(target_elements))
+                    print(f"🔍 Discovered {len(raw_elements)} UI candidates across entire DOM. Evaluated: {len(target_elements)} | Skipped: {skipped_count}")
 
                     # 2. Fetch Translations with Provenance
                     provenance_counts = {"OPENAI_API": 0, "PRESET": 0, "PSEUDO": 0, "FALLBACK": 0}
@@ -173,7 +174,8 @@ def cmd_scan(args):
                         "locale": locale,
                         "viewport": f"{vp_name} ({vp['width']}x{vp['height']})",
                         "total_scanned": len(raw_elements),
-                        "total_translated": len(target_elements),
+                        "total_evaluated": len(target_elements),
+                        "total_skipped": skipped_count,
                         "provenance_counts": provenance_counts,
                         "initial_overflows": overflow_count,
                         "initial_collisions": collision_count,
@@ -307,8 +309,9 @@ def cmd_repair(args):
 
                     # 1. Discover Elements
                     raw_elements = DOMScanner.discover_elements(page)
-                    target_elements = raw_elements[:max_elements]
-                    print(f"🔍 Discovered {len(raw_elements)} elements. Repairing top {len(target_elements)} interactive targets.")
+                    target_elements = raw_elements[:max_elements] if (max_elements and max_elements > 0) else raw_elements
+                    skipped_count = max(0, len(raw_elements) - len(target_elements))
+                    print(f"🔍 Discovered {len(raw_elements)} elements across DOM. Repairing {len(target_elements)} targets (Skipped: {skipped_count}).")
 
                     # Capture initial baseline screenshot
                     orig_screenshot = os.path.join(output_dir, f"polyglot_repair_before_{locale}_{vp_name}.png")
@@ -382,8 +385,10 @@ def cmd_repair(args):
                         "locale": locale,
                         "viewport": f"{vp_name} ({vp['width']}x{vp['height']})",
                         "strategy": strategy,
+                        "verified": repair_results.get("verified", True),
                         "total_scanned": len(raw_elements),
-                        "total_translated": len(target_elements),
+                        "total_evaluated": len(target_elements),
+                        "total_skipped": skipped_count,
                         "provenance_counts": provenance_counts,
                         "initial_overflows": repair_results["initial_overflows"],
                         "initial_collisions": repair_results["initial_collisions"],
@@ -440,7 +445,7 @@ def main():
     scan_parser.add_argument("--output", default="polyglot_audit_report.html", help="Path to write HTML report")
     scan_parser.add_argument("--json", default=None, help="Path to write JSON report")
     scan_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
-    scan_parser.add_argument("--max-elements", type=int, default=25, help="Maximum interactive elements to inspect")
+    scan_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to inspect (default: 0 = unlimited whole-page scan)")
     scan_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     scan_parser.set_defaults(func=cmd_scan)
 
@@ -461,7 +466,7 @@ def main():
     rep_parser.add_argument("--output", default="polyglot_repair_report.html", help="Path to write HTML report")
     rep_parser.add_argument("--json", default=None, help="Path to write JSON report")
     rep_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
-    rep_parser.add_argument("--max-elements", type=int, default=25, help="Maximum interactive elements to repair")
+    rep_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
     rep_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     rep_parser.set_defaults(func=cmd_repair)
 

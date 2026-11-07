@@ -2,21 +2,23 @@
 Polyglot Patcher — Dynamic CSS Generation & Source Repository Patching
 Generates targeted, calculated CSS rules based on diagnosed element geometry.
 Enforces safety rules to prevent modifying broad generic HTML selectors.
-When a local repository path is provided, locates the actual source file,
-modifies the stylesheet in memory, produces a genuine unified Git diff,
-and validates it via `git apply --check`.
+When a local repository path is provided, locates the actual source stylesheet (never HTML),
+modifies the stylesheet rule in memory, produces a genuine unified Git diff,
+and STRICTLY validates it via `git apply --check`. If validation fails, the patch is rejected.
 """
 
 import os
 import re
 import difflib
 import subprocess
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 UNSAFE_GENERIC_SELECTORS = {
     "button", "a", "div", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6",
     "label", "input", "body", "html", "header", "nav", "aside", "table", "tr", "td", "th"
 }
+
+STYLESHEET_EXTENSIONS = (".css", ".scss", ".sass", ".less", ".module.css")
 
 class DynamicCSSPatcher:
     @staticmethod
@@ -77,45 +79,46 @@ class DynamicCSSPatcher:
 
 class GitDiffPatcher:
     @staticmethod
-    def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> str:
+    def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> Tuple[str, bool]:
         """
-        Locates the CSS rule block for selector and injects/updates declarations before closing brace.
-        If selector block is not found, appends the new rule block cleanly.
+        Locates an existing CSS rule block for selector and injects/updates declarations before closing brace.
+        Returns (modified_content, modified_bool).
+        If the selector rule block is not defined in this stylesheet, leaves content untouched (returns False).
         """
         clean_sel = selector.strip()
         pattern = re.compile(
-            r"(^|\n)([ \t]*" + re.escape(clean_sel) + r"[^{]*\{)([^}]*)(\})",
+            r"(^|\n)([ \t]*[^{]*?" + re.escape(clean_sel) + r"[^{]*\{)([^}]*)(\})",
             re.MULTILINE
         )
 
         match = pattern.search(content)
-        if match:
-            prefix = match.group(1)
-            header = match.group(2)
-            body = match.group(3)
-            closing = match.group(4)
+        if not match:
+            return content, False
 
-            # Insert missing declarations
-            existing_body = body.rstrip()
-            indent = "  "
-            new_decls = "\n".join(f"{indent}{d}" for d in declarations if d.strip() not in existing_body)
-            if new_decls:
-                updated_body = f"{existing_body}\n{new_decls}\n"
-            else:
-                updated_body = body
+        prefix = match.group(1)
+        header = match.group(2)
+        body = match.group(3)
+        closing = match.group(4)
 
-            return content[:match.start()] + prefix + header + updated_body + closing + content[match.end():]
+        # Insert missing declarations
+        existing_body = body.rstrip()
+        indent = "  "
+        new_decls = "\n".join(f"{indent}{d}" for d in declarations if d.strip() not in existing_body)
+        if new_decls:
+            updated_body = f"{existing_body}\n{new_decls}\n"
         else:
-            # Append new rule block
-            new_block = f"\n\n{clean_sel} {{\n" + "\n".join(f"  {d}" for d in declarations) + "\n}\n"
-            return content.rstrip() + new_block
+            return content, False
+
+        new_content = content[:match.start()] + prefix + header + updated_body + closing + content[match.end():]
+        return new_content, True
 
     @classmethod
     def generate_patch(cls, repo_path: Optional[str], css_rules: Dict[str, List[str]]) -> Optional[str]:
         """
-        Searches local source files for the matching selector, modifies in memory,
+        Searches local source stylesheet files for the matching selector, modifies in memory,
         and produces a genuine unified Git diff patch with exact line numbers.
-        Validates the patch using git apply --check when in a git repo.
+        Strictly validates the patch using git apply --check when in a git repo.
+        If validation fails, strictly rejects and returns None.
         """
         if not repo_path or not os.path.exists(repo_path) or not css_rules:
             return None
@@ -127,13 +130,13 @@ class GitDiffPatcher:
 
         all_diffs = []
 
-        # Find matching stylesheet files
+        # Find matching stylesheet files ONLY (never touch HTML or non-stylesheets)
         for root, _, files in os.walk(repo_path):
             if any(part in root for part in [".git", "node_modules", ".venv", "__pycache__"]):
                 continue
 
             for file in files:
-                if file.endswith((".css", ".scss", ".module.css", ".html")):
+                if file.endswith(STYLESHEET_EXTENSIONS):
                     fpath = os.path.join(root, file)
                     rel_path = os.path.relpath(fpath, repo_path).replace("\\", "/")
 
@@ -145,10 +148,9 @@ class GitDiffPatcher:
                         file_touched = False
 
                         for sel, decls in safe_rules.items():
-                            clean_sel = sel.lstrip(".#")
-                            # If selector or class exists in file
-                            if clean_sel in orig_content or sel in orig_content:
-                                modified_content = cls.apply_modifications_to_css(modified_content, sel, decls)
+                            updated_text, changed = cls.apply_modifications_to_css(modified_content, sel, decls)
+                            if changed:
+                                modified_content = updated_text
                                 file_touched = True
 
                         if file_touched and modified_content != orig_content:
@@ -173,7 +175,7 @@ class GitDiffPatcher:
 
         full_patch = "".join(all_diffs)
 
-        # Validate with git apply --check if repo is a git repository
+        # Strict validation with git apply --check if repo is a git repository
         is_git_repo = os.path.exists(os.path.join(repo_path, ".git"))
         if is_git_repo:
             try:
@@ -185,8 +187,10 @@ class GitDiffPatcher:
                     capture_output=True
                 )
                 if proc.returncode != 0:
-                    print(f"⚠️ Warning: git apply --check reported: {proc.stderr.strip()}")
-            except Exception:
-                pass
+                    print(f"❌ Git patch validation failed (git apply --check non-zero): {proc.stderr.strip()}")
+                    return None  # Enforce strict rejection of invalid patches!
+            except Exception as e:
+                print(f"⚠️ Git validation check encountered error: {e}")
+                return None
 
         return full_patch

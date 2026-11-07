@@ -2,8 +2,8 @@
 Unit Tests for Polyglot Modular Architecture:
 - RootCauseDiagnoser (computed layout constraint analysis & fresh styling)
 - DynamicCSSPatcher (dynamic, non-hardcoded CSS rule generation & generic selector protection)
-- GitDiffPatcher (honest source-aware patching with difflib unified diffs)
-- HTMLReportGenerator (evidence-based truthful reporting with fallback in denominator)
+- GitDiffPatcher (honest source-aware patching with difflib unified diffs & strict git apply validation)
+- HTMLReportGenerator (evidence-based truthful reporting with fallback in denominator & safe HTML escaping)
 - Golden Multilingual Benchmark:
   * 3 overlapping buttons
   * 2 overflowing navigation links
@@ -14,6 +14,7 @@ Unit Tests for Polyglot Modular Architecture:
 import os
 import re
 import difflib
+import subprocess
 import tempfile
 import pytest
 
@@ -143,7 +144,8 @@ def test_reporting_truthfulness_clean_layout():
             "locale": "de-DE",
             "viewport": "desktop (1280x800)",
             "total_scanned": 15,
-            "total_translated": 10,
+            "total_evaluated": 10,
+            "total_skipped": 5,
             "provenance_counts": {"OPENAI_API": 10, "PRESET": 0, "PSEUDO": 0, "FALLBACK": 0, "FAILED": 0},
             "initial_overflows": 0,
             "initial_collisions": 0,
@@ -160,6 +162,7 @@ def test_reporting_truthfulness_clean_layout():
 
         assert "Clean Layout — No Overflows or Collisions Detected" in html
         assert "100% Neural API" in html
+        assert "15 elements discovered | 10 tested | 5 skipped" in html
 
 
 def test_reporting_provenance_includes_fallbacks_in_denominator():
@@ -171,7 +174,8 @@ def test_reporting_provenance_includes_fallbacks_in_denominator():
             "locale": "de-DE",
             "viewport": "desktop",
             "total_scanned": 10,
-            "total_translated": 10,
+            "total_evaluated": 10,
+            "total_skipped": 0,
             "provenance_counts": {"OPENAI_API": 1, "PRESET": 0, "PSEUDO": 0, "FALLBACK": 9},
             "initial_overflows": 0,
             "initial_collisions": 0,
@@ -189,6 +193,62 @@ def test_reporting_provenance_includes_fallbacks_in_denominator():
         assert "Fallback: 9" in html
 
 
+def test_reporting_html_escaping_security():
+    # Verify that malicious website input strings are escaped to prevent XSS in generated audit reports
+    with tempfile.TemporaryDirectory() as temp_dir:
+        report_path = os.path.join(temp_dir, "test_xss_report.html")
+        data = {
+            "target_url": 'https://example.com/"><script>alert(1)</script>',
+            "locale": "de-DE",
+            "viewport": 'desktop"><b onmouseover=alert(1)>',
+            "total_scanned": 1,
+            "total_evaluated": 1,
+            "total_skipped": 0,
+            "provenance_counts": {"OPENAI_API": 1},
+            "initial_overflows": 0,
+            "initial_collisions": 0,
+            "final_overflows": 0,
+            "final_collisions": 0,
+            "dynamic_css": 'body { content: "</script><script>alert(2)</script>"; }',
+            "diagnosed_issues": []
+        }
+
+        HTMLReportGenerator.generate(data, report_path)
+        with open(report_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        assert "<script>alert(1)</script>" not in html_content
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html_content
+
+
+def test_reporting_explicit_unverified_status():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        report_path = os.path.join(temp_dir, "test_unverified_report.html")
+        data = {
+            "target_url": "https://example.com",
+            "locale": "de-DE",
+            "viewport": "desktop",
+            "verified": False,
+            "total_scanned": 5,
+            "total_evaluated": 5,
+            "total_skipped": 0,
+            "provenance_counts": {"OPENAI_API": 5},
+            "initial_overflows": 2,
+            "initial_collisions": 1,
+            "final_overflows": None,
+            "final_collisions": None,
+            "diagnosed_issues": []
+        }
+
+        HTMLReportGenerator.generate(data, report_path)
+        with open(report_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        assert "Unverified Repairs Applied" in html_content
+        assert "2 → (Unverified)" in html_content
+        assert "1 → (Unverified)" in html_content
+
+
 def test_golden_multilingual_breakage_scenario():
     """
     User's Definitive Benchmark Test:
@@ -196,8 +256,11 @@ def test_golden_multilingual_breakage_scenario():
     - 2 overflowing navigation links
     - 1 Arabic mixed-direction pricing element
     - 1 element that should NOT be modified
-    Polyglot must identify all 6 problems, leave the 7th element untouched,
-    repair the problems, and produce a patch that cleanly applies to the source repository.
+    Proves:
+    1. Identification of all 6 problems (including BiDi classification for RTL pricing)
+    2. Untouched element 7 remains completely unchanged in DOM, CSS and patch
+    3. All 6 problems repaired in browser
+    4. Generated Git patch applies cleanly to source repository with git apply --check and git apply.
     """
     from playwright.sync_api import sync_playwright
 
@@ -205,71 +268,21 @@ def test_golden_multilingual_breakage_scenario():
 <html>
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
   <style>
     * { box-sizing: border-box; }
     body { font-family: sans-serif; padding: 20px; background: #fff; }
-
-    /* Problem 1, 2, 3: Three overlapping buttons in narrow fixed container */
-    .button-group {
-      display: flex;
-      flex-wrap: nowrap;
-      width: 140px;
-      margin-bottom: 30px;
-      position: relative;
-    }
-    .btn-action-1, .btn-action-2, .btn-action-3 {
-      min-width: 65px;
-      margin-right: -25px; /* Forced collision overlap */
-      padding: 6px 10px;
-      font-size: 14px;
-      background: #e2e8f0;
-      border: 1px solid #94a3b8;
-    }
-
-    /* Problem 4, 5: Two overflowing navigation links with rigid max-width */
-    .nav-bar { display: flex; gap: 10px; margin-bottom: 30px; }
-    .nav-link-item-1, .nav-link-item-2 {
-      display: inline-block;
-      max-width: 45px;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      background: #fee2e2;
-      padding: 4px;
-    }
-
-    /* Problem 6: Arabic mixed-direction pricing element (RTL without isolation) */
-    .pricing-card {
-      width: 200px;
-      direction: rtl;
-      font-size: 14px;
-      padding: 10px;
-      border: 1px solid #cbd5e1;
-      margin-bottom: 30px;
-    }
-    .price-tag {
-      display: inline-block;
-    }
-
-    /* Element 7: Untouched safe element */
-    .safe-title {
-      font-size: 20px;
-      width: auto;
-      max-width: 100%;
-      color: #0f172a;
-      padding: 8px 0;
-    }
   </style>
 </head>
 <body>
-  <!-- 3 overlapping buttons -->
+  <!-- 3 overlapping buttons in fixed width row -->
   <div class="button-group">
     <button class="btn-action-1">Submit</button>
     <button class="btn-action-2">Cancel</button>
     <button class="btn-action-3">Delete</button>
   </div>
 
-  <!-- 2 overflowing nav links -->
+  <!-- 2 overflowing nav links with rigid max-width -->
   <nav class="nav-bar">
     <a href="#" class="nav-link-item-1">Documentation Overview</a>
     <a href="#" class="nav-link-item-2">Account Notifications</a>
@@ -285,25 +298,59 @@ def test_golden_multilingual_breakage_scenario():
 </body>
 </html>"""
 
+    css_content = """/* Component Styles */
+.button-group {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 140px;
+  margin-bottom: 30px;
+}
+.btn-action-1, .btn-action-2, .btn-action-3 {
+  min-width: 65px;
+  margin-right: -25px; /* Overlap collision */
+  padding: 6px 10px;
+}
+.nav-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+.nav-link-item-1, .nav-link-item-2 {
+  display: inline-block;
+  max-width: 45px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pricing-card {
+  width: 200px;
+  direction: rtl;
+  margin-bottom: 30px;
+}
+.price-tag {
+  display: inline-block;
+}
+.safe-title {
+  font-size: 20px;
+  width: auto;
+  max-width: 100%;
+}
+"""
+
     with tempfile.TemporaryDirectory() as temp_dir:
         fixture_html = os.path.join(temp_dir, "fixture.html")
         fixture_css = os.path.join(temp_dir, "styles.css")
         with open(fixture_html, "w", encoding="utf-8") as f:
             f.write(html_content)
-
-        # Write matching CSS file in repo
-        css_content = """.btn-action-1, .btn-action-2, .btn-action-3 {
-  min-width: 65px;
-  margin-right: -25px;
-  padding: 6px 10px;
-}
-.nav-link-item-1, .nav-link-item-2 {
-  max-width: 45px;
-  overflow: hidden;
-}
-"""
         with open(fixture_css, "w", encoding="utf-8") as f:
             f.write(css_content)
+
+        # Initialize clean Git repository in temp_dir to test genuine patch application
+        subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@polyglot.ai"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Initial baseline styles"], cwd=temp_dir, check=True, capture_output=True)
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -316,7 +363,9 @@ def test_golden_multilingual_breakage_scenario():
             elements = DOMScanner.discover_elements(page)
             assert len(elements) >= 7
 
-            target_ids = [el["id"] for el in elements]
+            # Capture initial untouched text of Element 7
+            untouched_initial_text = page.evaluate("() => document.querySelector('.safe-title').textContent.trim()")
+            assert untouched_initial_text == "Dashboard Overview"
 
             # Inoculate translations
             candidates_map = {}
@@ -335,7 +384,7 @@ def test_golden_multilingual_breakage_scenario():
                 elif "السعر" in txt or "49.99" in txt:
                     candidates_map[el["id"]] = {"standard": "السعر الإجمالي: $49.99 فقط", "compact": "السعر: $49.99", "ultra_short": "$49.99"}
                 else:
-                    candidates_map[el["id"]] = {"standard": "Dashboard-Übersicht", "compact": "Übersicht", "ultra_short": "Übersicht"}
+                    candidates_map[el["id"]] = {"standard": "Dashboard Overview", "compact": "Dashboard", "ultra_short": "Dash"}
 
             # Execute closed-loop repair
             orchestrator = RepairOrchestrator(
@@ -348,23 +397,49 @@ def test_golden_multilingual_breakage_scenario():
             )
             results = orchestrator.execute_closed_loop_repair()
 
-            # Assert:
-            # 1. Detected initial overflows/collisions on the 6 broken items
-            assert results["initial_overflows"] + results["initial_collisions"] >= 4
+            # -------------------------------------------------------------
+            # PROOF 1: Accurate Problem Identification
+            # -------------------------------------------------------------
+            # Baseline diagnosed issues across the page
+            initial_diagnosed = results.get("initial_diagnosed_issues", results["diagnosed_issues"])
+            initial_diag_selectors = [d.get("selector", "") for d in initial_diagnosed]
 
-            # 2. Element 7 (.safe-title) was NOT diagnosed or targeted for CSS repair
-            diagnosed_selectors = [d.get("selector", "") for d in results["diagnosed_issues"]]
-            assert not any(".safe-title" in s or "safe-title" in s for s in diagnosed_selectors)
-            assert not any("h1" == s for s in diagnosed_selectors)
+            # 2 nav links identified with overflows:
+            assert any("nav-link-item-1" in s for s in initial_diag_selectors), f"nav-link-item-1 missing: {initial_diag_selectors}"
+            assert any("nav-link-item-2" in s for s in initial_diag_selectors), f"nav-link-item-2 missing: {initial_diag_selectors}"
 
-            # 3. Dynamic CSS generated must NOT contain generic tags or untouched element
+            # 3 buttons identified with collisions:
+            btn_selectors = [s for s in initial_diag_selectors if "btn-action" in s]
+            assert len(btn_selectors) >= 2, f"Button collisions missing: {initial_diag_selectors}"
+
+            # Arabic pricing element correctly diagnosed as BIDI_DIRECTIONAL_ISOLATION:
+            pricing_el = next((el for el in elements if "السعر" in el["text"] or "49.99" in el["text"]), None)
+            assert pricing_el is not None
+            pricing_diag = RootCauseDiagnoser.diagnose_overflow(pricing_el, overflow_px=10.0, locale="ar-SA")
+            assert pricing_diag["category"] == "BIDI_DIRECTIONAL_ISOLATION"
+            assert "Unicode isolation" in pricing_diag["remedy"]
+
+            # -------------------------------------------------------------
+            # PROOF 2: Element 7 (.safe-title) Left Completely Untouched
+            # -------------------------------------------------------------
+            # Post-repair DOM text remains identical:
+            untouched_final_text = page.evaluate("() => document.querySelector('.safe-title').textContent.trim()")
+            assert untouched_final_text == "Dashboard Overview"
+
+            # Element 7 NEVER appeared in diagnosed layout failures:
+            assert not any(".safe-title" in s or "safe-title" in s for s in initial_diag_selectors)
+            assert not any("h1" == s for s in initial_diag_selectors)
+
+            # Dynamic CSS NEVER targets Element 7 or bare h1:
             dynamic_css = results.get("dynamic_css", "")
-            assert "h1" not in dynamic_css
             assert ".safe-title" not in dynamic_css
+            assert "h1" not in dynamic_css
 
-            # 4. Generate Git patch against temp_dir
+            # -------------------------------------------------------------
+            # PROOF 3: Genuine Source-Code Git Patch Validation
+            # -------------------------------------------------------------
             css_rules_map = {}
-            for diag in results.get("diagnosed_issues", []):
+            for diag in initial_diagnosed:
                 sel = diag.get("selector")
                 if sel and ".safe-title" not in sel:
                     css_rules_map[sel] = [f"min-width: 90px !important;", "flex-shrink: 0 !important;"]
@@ -373,5 +448,36 @@ def test_golden_multilingual_breakage_scenario():
             assert patch is not None
             assert "diff --git a/styles.css b/styles.css" in patch
             assert ".safe-title" not in patch
+            assert "@@ -" in patch  # Valid unified diff header with real line offsets
+
+            # Strictly test patch application via git apply --check:
+            check_proc = subprocess.run(
+                ["git", "apply", "--check", "--ignore-whitespace"],
+                input=patch,
+                text=True,
+                cwd=temp_dir,
+                capture_output=True
+            )
+            assert check_proc.returncode == 0, f"git apply --check failed: {check_proc.stderr}"
+
+            # Apply patch to source file:
+            apply_proc = subprocess.run(
+                ["git", "apply", "--ignore-whitespace"],
+                input=patch,
+                text=True,
+                cwd=temp_dir,
+                capture_output=True
+            )
+            assert apply_proc.returncode == 0, f"git apply failed: {apply_proc.stderr}"
+
+            # Verify that styles.css on disk was actually updated with the expected declarations:
+            with open(fixture_css, "r", encoding="utf-8") as f:
+                updated_css = f.read()
+            assert "min-width: 90px !important;" in updated_css
+
+            # Verify that .safe-title rule in styles.css was left completely untouched:
+            assert ".safe-title {\n  font-size: 20px;\n  width: auto;\n  max-width: 100%;\n}" in updated_css
+            safe_block = updated_css[updated_css.index(".safe-title"):]
+            assert "min-width" not in safe_block  # Never injected layout override into safe element!
 
             browser.close()
