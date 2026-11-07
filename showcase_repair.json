@@ -2,10 +2,13 @@
   "target_url": "http://127.0.0.1:8000/static/showcase.html",
   "locale": "de-DE",
   "viewport": "desktop (1280x800)",
-  "total_scanned": 14,
-  "total_translated": 14,
+  "strategy": "auto",
+  "verified": true,
+  "total_scanned": 17,
+  "total_evaluated": 17,
+  "total_skipped": 0,
   "provenance_counts": {
-    "OPENAI_API": 14,
+    "OPENAI_API": 17,
     "PRESET": 0,
     "PSEUDO": 0,
     "FALLBACK": 0
@@ -19,17 +22,18 @@
   "diagnosed_issues": [
     {
       "category": "CSS_RIGID_WIDTH_CONSTRAINT",
-      "explanation": "Element is constrained to a fixed 39px box, which cannot accommodate standard vocabulary in de-DE.",
-      "remedy": "Set 'min-width: 78px; flex-shrink: 0;' or use fit-content.",
+      "explanation": "Element is constrained to a fixed 51px box, which cannot accommodate expanded vocabulary in de-DE.",
+      "remedy": "Set 'min-width: 90px; flex-shrink: 0;' or use fit-content.",
+      "id": "16",
       "selector": ".rigid-btn",
-      "current_width": 39,
+      "current_width": 51,
       "overflow_px": 27
     }
   ],
-  "dynamic_css": "/* Polyglot Engine Dynamically Calculated Layout Patch */\n/* Rules generated from actual in-browser reflow geometry */\n\n.rigid-btn {\n  min-width: 74px !important;\n  max-width: none !important;\n  width: auto !important;\n  white-space: nowrap !important;\n}\n",
+  "dynamic_css": "/* Polyglot Engine Dynamically Calculated Layout Patch */\n/* Rules generated from actual in-browser reflow geometry */\n\n.rigid-btn {\n  min-width: 86px !important;\n  max-width: none !important;\n  width: auto !important;\n  white-space: nowrap !important;\n}\n",
   "git_patch": null,
   "screenshots": {
-    "Before Repair (Initial Inoculation)": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_before_de-DE.png",
-    "After Closed-Loop Repair": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_after_de-DE.png"
+    "Before Repair": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_before_de-DE_desktop.png",
+    "After Closed-Loop Repair": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_repair_after_de-DE_desktop.png"
   }
 }

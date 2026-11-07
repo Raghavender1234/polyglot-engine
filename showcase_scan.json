@@ -1,0 +1,34 @@
+{
+  "target_url": "http://127.0.0.1:8000/static/showcase.html",
+  "locale": "de-DE",
+  "viewport": "desktop (1280x800)",
+  "total_scanned": 17,
+  "total_evaluated": 17,
+  "total_skipped": 0,
+  "provenance_counts": {
+    "OPENAI_API": 17,
+    "PRESET": 0,
+    "PSEUDO": 0,
+    "FALLBACK": 0
+  },
+  "initial_overflows": 1,
+  "initial_collisions": 0,
+  "final_overflows": 1,
+  "final_collisions": 0,
+  "resolved_overflows": 0,
+  "resolved_collisions": 0,
+  "diagnosed_issues": [
+    {
+      "category": "CSS_RIGID_WIDTH_CONSTRAINT",
+      "explanation": "Element is constrained to a fixed 51px box, which cannot accommodate expanded vocabulary in de-DE.",
+      "remedy": "Set 'min-width: 90px; flex-shrink: 0;' or use fit-content.",
+      "id": "16",
+      "selector": ".rigid-btn",
+      "text": "Einstellungen",
+      "overflow_px": 27
+    }
+  ],
+  "screenshots": {
+    "Scan de-DE (desktop)": "C:\\Users\\brred\\.gemini\\antigravity\\scratch\\polyglot-engine\\polyglot_scan_de-DE_desktop.png"
+  }
+}
