@@ -365,7 +365,8 @@ def cmd_repair(args):
                         candidates_map=candidates_map,
                         locale=locale,
                         strategy=strategy,
-                        verify=verify
+                        verify=verify,
+                        repo_path=repo_path
                     )
                     repair_results = orchestrator.execute_closed_loop_repair()
 
@@ -379,21 +380,24 @@ def cmd_repair(args):
                     print(f"   - Overflows Cleared:   {repair_results['resolved_overflows']}")
                     print(f"   - Collisions Cleared:  {repair_results['resolved_collisions']}")
                     print(f"   - BiDi Cleared:        {repair_results.get('resolved_bidi_defects', 0)}")
+                    if repair_results.get("source_patch_verified"):
+                        print(f"   - Source Patch Reload: ✅ 100% Verified in clean browser reload!")
 
                     # Capture post-repair screenshot
                     post_screenshot = os.path.join(output_dir, f"polyglot_repair_after_{locale}_{vp_name}.png")
                     page.screenshot(path=post_screenshot, full_page=True)
 
-                    # 4. Genuine Git Diff Patching if repo_path provided
-                    git_patch_text = None
-                    if repo_path and (repair_results.get("dynamic_css") or repair_results.get("initial_diagnosed_issues")):
+                    # 4. Write Git Diff Patch if generated and repo_path provided
+                    git_patch_text = repair_results.get("git_patch")
+                    if repo_path and not git_patch_text:
                         all_diagnosed = repair_results.get("diagnosed_issues") or repair_results.get("initial_diagnosed_issues", [])
                         git_patch_text = GitDiffPatcher.generate_patch(repo_path, all_diagnosed)
-                        if git_patch_text:
-                            patch_path = os.path.join(output_dir, f"polyglot_repair_{locale}_{vp_name}.patch")
-                            with open(patch_path, "w", encoding="utf-8") as pf:
-                                pf.write(git_patch_text)
-                            print(f"📝 Genuine Git diff patch written to: {patch_path}")
+
+                    if git_patch_text:
+                        patch_path = os.path.join(output_dir, f"polyglot_repair_{locale}_{vp_name}.patch")
+                        with open(patch_path, "w", encoding="utf-8") as pf:
+                            pf.write(git_patch_text)
+                        print(f"📝 Genuine Git diff patch written to: {patch_path}")
 
                     # 5. Compile Run Data
                     run_data = {

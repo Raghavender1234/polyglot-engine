@@ -38,6 +38,37 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         return el.tagName.toLowerCase();
     }
 
+    // Helper: Locate responsible source stylesheet in document.styleSheets
+    function findRuleSourceSheet(selector) {
+        if (!selector) return null;
+        try {
+            for (let i = 0; i < document.styleSheets.length; i++) {
+                const sheet = document.styleSheets[i];
+                const href = sheet.href;
+                if (!href) continue;
+                let rules;
+                try {
+                    rules = sheet.cssRules || sheet.rules;
+                } catch(e) {
+                    continue;
+                }
+                if (!rules) continue;
+                for (let j = 0; j < rules.length; j++) {
+                    const r = rules[j];
+                    if (r.selectorText && (r.selectorText === selector || r.selectorText.includes(selector))) {
+                        try {
+                            const u = new URL(href, window.location.href);
+                            return u.pathname.split('/').pop();
+                        } catch(e) {
+                            return href.split('/').pop().split('?')[0];
+                        }
+                    }
+                }
+            }
+        } catch(e) {}
+        return null;
+    }
+
     // 1. Check Container Overflows on Translated Elements with fresh computed styles
     for (const el of translatedEls) {
         const style = window.getComputedStyle(el);
@@ -49,11 +80,13 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
             const parent = el.parentElement;
             const parentStyle = parent ? window.getComputedStyle(parent) : null;
             const parentRect = parent ? parent.getBoundingClientRect() : null;
+            const sel = getStableSelector(el);
 
             overflows.push({
                 id: el.getAttribute('data-polyglot-id'),
                 tag: el.tagName.toLowerCase(),
-                selector: getStableSelector(el),
+                selector: sel,
+                target_stylesheet: findRuleSourceSheet(sel),
                 text: (el.innerText || el.textContent || '').trim().substring(0, 50),
                 scrollWidth: el.scrollWidth,
                 clientWidth: el.clientWidth,
@@ -72,49 +105,139 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         }
     }
 
-    // 2. Check In-Browser BiDi Directional & Isolation Defects
+    // 2. Visual BiDi Directional & Isolation Defects (Zero False Positives)
     for (const el of translatedEls) {
         const text = (el.innerText || el.textContent || '').trim();
         const hasRtlChars = /[\\u0600-\\u06FF\\u0750-\\u077F\\u0590-\\u05FF]/.test(text);
-        const hasLtrRun = /[\\$\\d\\%\\+\\-\\/\\#]/.test(text);
+        if (!hasRtlChars) continue;
 
-        if (hasRtlChars && hasLtrRun) {
-            const style = window.getComputedStyle(el);
-            const hasIsolate = (style.unicodeBidi === 'isolate' ||
-                                style.unicodeBidi === 'isolate-override' ||
-                                style.unicodeBidi === 'plaintext' ||
-                                /[\\u2066\\u2067\\u2068]/.test(text));
-            const isRtlDir = (el.dir === 'rtl' ||
-                              style.direction === 'rtl' ||
-                              Boolean(el.closest('[dir="rtl"]')));
+        const style = window.getComputedStyle(el);
+        const isRtlContext = (el.dir === 'rtl' || style.direction === 'rtl' || Boolean(el.closest('[dir="rtl"]')));
 
-            if (!hasIsolate || !isRtlDir) {
-                bidiIssues.push({
-                    id: el.getAttribute('data-polyglot-id'),
-                    tag: el.tagName.toLowerCase(),
-                    selector: getStableSelector(el),
-                    text: text.substring(0, 50),
-                    direction: style.direction,
-                    unicodeBidi: style.unicodeBidi,
-                    hasIsolate: hasIsolate,
-                    missingRtlDir: !isRtlDir,
-                    category: 'BIDI_DIRECTIONAL_ISOLATION',
-                    explanation: !isRtlDir ? 'RTL text rendered in LTR directional context without dir="rtl"' : 'Mixed-direction text missing Unicode bidirectional isolation',
-                    remedy: 'Set unicode-bidi: isolate; direction: rtl; or wrap numbers in Unicode isolates.'
-                });
+        // Check if explicitly isolated
+        const hasExplicitIsolate = (
+            style.unicodeBidi === 'isolate' ||
+            style.unicodeBidi === 'isolate-override' ||
+            style.unicodeBidi === 'plaintext' ||
+            /[\\u2066\\u2067\\u2068]/.test(text) ||
+            el.tagName.toLowerCase() === 'bdi' ||
+            Boolean(el.querySelector('bdi'))
+        );
+
+        let defectDetected = null;
+
+        // Check A: Visual Currency/Number Symbol Inversion
+        const numMatch = text.match(/([\\$€£¥#\\+\\-])\\s*(\\d+[\\d\\.,]*)/);
+        if (numMatch) {
+            const symbol = numMatch[1];
+            const numPart = numMatch[2];
+
+            try {
+                const range = document.createRange();
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                let node;
+                let symRect = null, numRect = null;
+
+                while ((node = walker.nextNode())) {
+                    const cText = node.textContent;
+                    const symIdx = cText.indexOf(symbol);
+                    const numIdx = cText.indexOf(numPart);
+
+                    if (symIdx !== -1 && symRect === null) {
+                        range.setStart(node, symIdx);
+                        range.setEnd(node, symIdx + 1);
+                        symRect = range.getBoundingClientRect();
+                    }
+                    if (numIdx !== -1 && numRect === null) {
+                        range.setStart(node, numIdx);
+                        range.setEnd(node, numIdx + 1);
+                        numRect = range.getBoundingClientRect();
+                    }
+                }
+
+                // If symbol is visually placed to the RIGHT of the number in LTR context,
+                // the symbol was inverted by BiDi algorithm!
+                if (symRect && numRect && symRect.width > 0 && numRect.width > 0) {
+                    if (symRect.left > numRect.right + 2) {
+                        defectDetected = {
+                            type: 'CURRENCY_SYMBOL_INVERSION',
+                            explanation: `Currency symbol '${symbol}' visually flipped to the wrong side of '${numPart}' due to un-isolated mixed-direction rendering.`,
+                            remedy: 'Isolate the embedded directional run using Unicode isolate marks or <bdi> tag.'
+                        };
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // Check B: Neutral punctuation spill in LTR container
+        if (!defectDetected && !isRtlContext && !hasExplicitIsolate) {
+            const trailingPunctMatch = text.match(/([:!?.])\\s*$/);
+            if (trailingPunctMatch) {
+                const punctChar = trailingPunctMatch[1];
+                try {
+                    const range = document.createRange();
+                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                    let node;
+                    let punctRect = null, firstRtlRect = null;
+
+                    while ((node = walker.nextNode())) {
+                        const cText = node.textContent;
+                        for (let k = 0; k < cText.length; k++) {
+                            const c = cText[k];
+                            if (firstRtlRect === null && /[\\u0600-\\u06FF\\u0750-\\u077F\\u0590-\\u05FF]/.test(c)) {
+                                range.setStart(node, k);
+                                range.setEnd(node, k + 1);
+                                firstRtlRect = range.getBoundingClientRect();
+                            }
+                        }
+                        const pIdx = cText.lastIndexOf(punctChar);
+                        if (pIdx !== -1 && punctRect === null) {
+                            range.setStart(node, pIdx);
+                            range.setEnd(node, pIdx + 1);
+                            punctRect = range.getBoundingClientRect();
+                        }
+                    }
+
+                    if (punctRect && firstRtlRect && punctRect.right < firstRtlRect.left) {
+                        defectDetected = {
+                            type: 'NEUTRAL_PUNCTUATION_SPILL',
+                            explanation: `Trailing punctuation '${punctChar}' spilled to the opposite visual boundary because element lacks directional context or isolation.`,
+                            remedy: 'Apply dir="auto" or wrap the string in Unicode isolate marks.'
+                        };
+                    }
+                } catch(e) {}
             }
+        }
+
+        if (defectDetected) {
+            const sel = getStableSelector(el);
+            bidiIssues.push({
+                id: el.getAttribute('data-polyglot-id'),
+                tag: el.tagName.toLowerCase(),
+                selector: sel,
+                text: text.substring(0, 50),
+                target_stylesheet: findRuleSourceSheet(sel),
+                category: 'BIDI_DIRECTIONAL_ISOLATION',
+                type: defectDetected.type,
+                explanation: defectDetected.explanation,
+                remedy: defectDetected.remedy
+            });
         }
     }
 
-    // 3. Discover ALL visible elements across the entire page
-    const allCandidates = document.querySelectorAll(
-        'button, a, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], p, span, h1, h2, h3, h4, h5, h6, [role="row"], td, th, img, svg, nav, header, aside, .badge, .btn, [class*="item"], [class*="card"], [class*="btn"], [class*="link"]'
-    );
+    // 3. Discover ALL visible elements across the entire page (custom elements, widgets, containers, buttons, etc.)
+    const allDomNodes = document.body ? document.body.querySelectorAll('*') : [];
     const visibleElements = [];
+    const NON_OBSTACLE_TAGS = new Set([
+        'script', 'style', 'noscript', 'template', 'meta', 'link', 'br', 'hr', 'source', 'track'
+    ]);
 
-    for (let i = 0; i < allCandidates.length; i++) {
-        const el = allCandidates[i];
+    for (let i = 0; i < allDomNodes.length; i++) {
+        const el = allDomNodes[i];
         if (el.closest('#polyglot-inspector-root')) continue;
+        const tag = el.tagName.toLowerCase();
+        if (NON_OBSTACLE_TAGS.has(tag)) continue;
+
         const style = window.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) continue;
         if (style.pointerEvents === 'none') continue;
@@ -123,7 +246,25 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         if (r.width <= 4 || r.height <= 4) continue;
 
         // Skip full-screen backdrops / overlays
-        if (r.width >= window.innerWidth * 0.95 && r.height >= window.innerHeight * 0.95) continue;
+        if (r.width >= window.innerWidth * 0.96 && r.height >= window.innerHeight * 0.96) continue;
+
+        // Visual obstacle check: must have direct text, be a leaf element, be interactive, or have visible background/border
+        const hasDirectText = Array.from(el.childNodes).some(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0);
+        const isLeaf = el.children.length === 0;
+        const hasPaint = (
+            (style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent') ||
+            (parseFloat(style.borderWidth) > 0 && style.borderStyle !== 'none') ||
+            style.backgroundImage !== 'none' ||
+            style.boxShadow !== 'none'
+        );
+        const isInteractive = /^(button|a|input|select|textarea|summary|details)$/i.test(tag) ||
+            el.getAttribute('role') === 'button' ||
+            el.getAttribute('role') === 'tab' ||
+            el.getAttribute('role') === 'menuitem';
+
+        if (!hasDirectText && !isLeaf && !hasPaint && !isInteractive) {
+            continue;
+        }
 
         const isBadgeOrOverlay = (
             el.getAttribute('role') === 'status' ||
@@ -132,16 +273,16 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         );
 
         visibleElements.push({
-            uid: i,
+            uid: visibleElements.length,
             el: el,
             rect: r,
             style: style,
             isTranslated: el.hasAttribute('data-polyglot-id') && targetIds.has(el.getAttribute('data-polyglot-id')),
             text: (el.innerText || el.textContent || '').trim().substring(0, 40),
-            tag: el.tagName.toLowerCase(),
+            tag: tag,
             selector: getStableSelector(el),
             isBadge: isBadgeOrOverlay,
-            isInteractive: /^(button|a|input|select|textarea)$/i.test(el.tagName) || el.getAttribute('role') === 'button'
+            isInteractive: isInteractive
         });
     }
 

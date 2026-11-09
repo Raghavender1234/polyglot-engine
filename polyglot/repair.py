@@ -6,10 +6,12 @@ Executes configurable repair strategies:
   - "css-only": Keep standard translations; resolve overflows and collisions exclusively via targeted CSS adjustments.
 """
 
-from typing import Dict, Any, List, Tuple
+import os
+import subprocess
+from typing import Dict, Any, List, Tuple, Optional
 from .detector import CollisionDetector
 from .diagnosis import RootCauseDiagnoser
-from .patcher import DynamicCSSPatcher
+from .patcher import DynamicCSSPatcher, GitDiffPatcher
 
 JS_APPLY_BATCH_TEXT = """
 (translations) => {
@@ -79,7 +81,8 @@ class RepairOrchestrator:
         candidates_map: Dict[str, Dict[str, Any]],
         locale: str,
         strategy: str = "auto",
-        verify: bool = True
+        verify: bool = True,
+        repo_path: Optional[str] = None
     ):
         self.page = page
         self.elements = target_elements
@@ -87,6 +90,7 @@ class RepairOrchestrator:
         self.locale = locale
         self.strategy = strategy.lower().strip()  # "auto", "css-only", "text-only"
         self.verify = verify
+        self.repo_path = repo_path
         self.target_ids = [el["id"] for el in target_elements]
 
     def execute_closed_loop_repair(self) -> Dict[str, Any]:
@@ -120,6 +124,7 @@ class RepairOrchestrator:
             diag = RootCauseDiagnoser.diagnose_overflow(merged_el, ovf["overflowPx"], self.locale)
             diag["id"] = ovf["id"]
             diag["selector"] = ovf["selector"]
+            diag["target_stylesheet"] = ovf.get("target_stylesheet")
             diag["current_width"] = ovf.get("computedWidth", el.get("contentWidth", 60.0))
             diag["overflow_px"] = ovf["overflowPx"]
             initial_diagnosed_issues.append(diag)
@@ -131,6 +136,7 @@ class RepairOrchestrator:
             diag = RootCauseDiagnoser.diagnose_collision(col, merged_el, {})
             diag["id"] = col["translatedId"]
             diag["selector"] = col["selector1"]
+            diag["target_stylesheet"] = col.get("target_stylesheet")
             diag["collided_with"] = col.get("selector2", "")
             diag["current_width"] = el.get("contentWidth", 60.0)
             diag["overflow_px"] = col["overlapX"]
@@ -142,6 +148,7 @@ class RepairOrchestrator:
                 diag2 = RootCauseDiagnoser.diagnose_collision(col, el2, {})
                 diag2["id"] = col["otherTranslatedId"]
                 diag2["selector"] = col.get("selector2", "")
+                diag2["target_stylesheet"] = col.get("target_stylesheet")
                 diag2["collided_with"] = col.get("selector1", "")
                 diag2["current_width"] = el2.get("contentWidth", 60.0)
                 diag2["overflow_px"] = col["overlapX"]
@@ -152,6 +159,7 @@ class RepairOrchestrator:
             diag = {
                 "id": bidi.get("id"),
                 "selector": bidi.get("selector"),
+                "target_stylesheet": bidi.get("target_stylesheet"),
                 "category": "BIDI_DIRECTIONAL_ISOLATION",
                 "explanation": bidi.get("explanation"),
                 "remedy": bidi.get("remedy"),
@@ -246,6 +254,7 @@ class RepairOrchestrator:
                 diag = RootCauseDiagnoser.diagnose_overflow(merged_el, ovf["overflowPx"], self.locale)
                 diag["id"] = ovf["id"]
                 diag["selector"] = ovf["selector"]
+                diag["target_stylesheet"] = ovf.get("target_stylesheet")
                 diag["current_width"] = ovf.get("computedWidth", el.get("contentWidth", 60.0))
                 diag["overflow_px"] = ovf["overflowPx"]
                 diagnosed_issues.append(diag)
@@ -257,6 +266,7 @@ class RepairOrchestrator:
                 diag = RootCauseDiagnoser.diagnose_collision(col, merged_el, {})
                 diag["id"] = col["translatedId"]
                 diag["selector"] = col["selector1"]
+                diag["target_stylesheet"] = col.get("target_stylesheet")
                 diag["current_width"] = el.get("contentWidth", 60.0)
                 diag["overflow_px"] = col["overlapX"]
                 diagnosed_issues.append(diag)
@@ -267,6 +277,7 @@ class RepairOrchestrator:
                     diag2 = RootCauseDiagnoser.diagnose_collision(col, el2, {})
                     diag2["id"] = col["otherTranslatedId"]
                     diag2["selector"] = col.get("selector2", "")
+                    diag2["target_stylesheet"] = col.get("target_stylesheet")
                     diag2["current_width"] = el2.get("contentWidth", 60.0)
                     diag2["overflow_px"] = col["overlapX"]
                     diagnosed_issues.append(diag2)
@@ -276,6 +287,7 @@ class RepairOrchestrator:
                 diag = {
                     "id": bidi.get("id"),
                     "selector": bidi.get("selector"),
+                    "target_stylesheet": bidi.get("target_stylesheet"),
                     "category": "BIDI_DIRECTIONAL_ISOLATION",
                     "explanation": bidi.get("explanation"),
                     "remedy": bidi.get("remedy"),
@@ -292,6 +304,9 @@ class RepairOrchestrator:
                 self.page.evaluate(JS_INJECT_CSS_PATCH, applied_css)
 
         # Verification step
+        source_patch_verified = False
+        git_patch_text = None
+
         if self.verify:
             final_metrics = CollisionDetector.detect(self.page, self.target_ids)
             final_overflows = final_metrics["overflowCount"]
@@ -302,6 +317,52 @@ class RepairOrchestrator:
             resolved_bidi_defects = max(0, initial_bidi_defects - final_bidi_defects)
             all_cleared = (final_overflows == 0 and final_collisions == 0 and final_bidi_defects == 0)
             verified_status = True
+
+            # Closed-Loop Source Patch Verification if repo_path provided
+            if self.repo_path and os.path.exists(self.repo_path):
+                # Combine all diagnosed layout and BiDi issues so source stylesheets receive comprehensive protection
+                merged_diag = {}
+                for d in initial_diagnosed_issues:
+                    if d.get("id"):
+                        merged_diag[d["id"]] = d
+                for d in diagnosed_issues:
+                    if d.get("id"):
+                        merged_diag[d["id"]] = d
+                all_diagnosed = list(merged_diag.values()) if merged_diag else (diagnosed_issues or initial_diagnosed_issues)
+
+                git_patch_text = GitDiffPatcher.generate_patch(self.repo_path, all_diagnosed)
+                if git_patch_text:
+                    try:
+                        # 1. Apply patch to clean source repo
+                        proc = subprocess.run(
+                            ["git", "apply", "--ignore-whitespace"],
+                            input=git_patch_text,
+                            text=True,
+                            cwd=self.repo_path,
+                            capture_output=True
+                        )
+                        if proc.returncode == 0:
+                            # 2. Remove in-memory dynamic CSS overrides completely
+                            self.page.evaluate("() => { const s = document.getElementById('polyglot-dynamic-repair-patch'); if (s) s.remove(); }")
+                            # 3. Reload page from disk
+                            self.page.reload(wait_until="domcontentloaded")
+                            self.page.wait_for_timeout(300)
+                            # 4. Re-apply localized text state
+                            reapply_payload = [
+                                {"id": el_id, "text": active_texts.get(el_id, ""), "dir": self.candidates.get(el_id, {}).get("dir", "")}
+                                for el_id in self.target_ids
+                            ]
+                            self.page.evaluate(JS_APPLY_BATCH_TEXT, reapply_payload)
+                            self.page.wait_for_timeout(200)
+
+                            # 5. Measure on freshly reloaded page with ONLY the on-disk patch active!
+                            src_metrics = CollisionDetector.detect(self.page, self.target_ids)
+                            if (src_metrics["overflowCount"] == 0 and
+                                src_metrics["collisionCount"] == 0 and
+                                src_metrics.get("bidiCount", 0) == 0):
+                                source_patch_verified = True
+                    except Exception as e:
+                        print(f"⚠️ Closed-loop source patch verification error: {e}")
         else:
             final_overflows = None
             final_collisions = None
@@ -315,6 +376,8 @@ class RepairOrchestrator:
         return {
             "strategy": self.strategy,
             "verified": verified_status,
+            "source_patch_verified": source_patch_verified,
+            "git_patch": git_patch_text,
             "initial_overflows": initial_overflows,
             "initial_collisions": initial_collisions,
             "initial_bidi_defects": initial_bidi_defects,

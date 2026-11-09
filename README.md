@@ -1,53 +1,64 @@
-# Polyglot Engine — Layout-Safe Localization & UI Protection
+# Polyglot Engine — Autonomous Multilingual Layout Scanner & Verified Source Repair Engine
 
-> **Developer-first localization engine** that pairs **HarfBuzz OpenType C-shaping**, **BiDi Unicode isolation**, and **multi-variant LLM translation** with **Razorpay subscriptions** and **CI/CD layout testing**.
-
----
-
-## ⚡ The Real Value Proposition
-
-Existing localization platforms (Lokalise, Phrase, Google Translate) treat strings as abstract text with arbitrary character limits. But character counts do not equal pixel widths:
-- 15 characters of `"iiiiiiiiiiiiiii"` is **~48px**.
-- 15 characters of `"WWWWWWWWWWWWWWW"` is **~195px**.
-
-Polyglot Engine physically shapes text against real OpenType TrueType binaries (`.ttf`) in **< 1.5ms**, detects button/container overflows before release, and automatically swaps in meaning-preserving compact variants.
-
-```
-[Client App / CI/CD Pipeline]
-       │
-       ▼  POST /v1/localize (Text + Max Width PX + Font Size + Locale)
-[FastAPI Gateway (Python 3.12)]
-       │
-       ├──► 1. Check SQLite Cache (Full parameter hash) ──► [HIT: Return in < 4ms]
-       │
-       ▼  (Cache Miss)
-[OpenAI API (gpt-4o-mini / Strict Structured Outputs)]
-  • Generates 3 semantic length variants in a single pass: [Standard, Compact, Ultra-Short]
-  • Preserves variables, currency formats, and glossary terms
-       │
-       ▼
-[Deterministic C-Shaping Engine]
-  ├──► Step A: HarfBuzz shapes all 3 variants against real .ttf font files
-  │            (Noto Nastaliq Urdu, Noto Sans Arabic, Inter, Noto Sans JP)
-  │            Selects the most natural variant that fits <= max_width_px
-  ├──► Step B: BiDi Shield wraps numbers, prices, and LTR islands in Unicode isolates (\u2066...\u2069)
-  └──► Step C: CSS Mapper injects script rules (e.g. line-height: 1.85 for Urdu Nastaliq descenders)
-       │
-       ▼
-[Save to SQLite DB + Atomically Track Monthly Quota] ──► Return JSON Response
-```
+> **Developer CLI & Verification Engine** that audits web applications across multiple locales and viewports, detects container overflows, full-page collisions, and visual BiDi inversion defects in the browser, and produces **closed-loop verified source-code Git patches** directly against your repository.
 
 ---
 
-## 🚀 Key Capabilities
+## ⚡ The Core Problem & Solution
 
-1. **Deterministic HarfBuzz Shaping**: Real OpenType advance-width calculation on CPU in **~1.1ms**.
-2. **`overflow_prevented` Proof-of-Value**: The API explicitly returns the rejected full string and its pixel width in the payload so developers immediately see what was saved.
-3. **BiDi Unicode Isolates (`\u2066...\u2069`)**: Protects mixed LTR/RTL text (e.g. prices like `$49.99` in Arabic/Urdu) from punctuation flipping bugs.
-4. **Persistent SQLite Database (`polyglot.db`)**: Stores organizations, hashed API keys (`pk_live_...`), quotas, orders, and cache across restarts.
-5. **Razorpay Subscriptions**: Integrated payment order creation and signature verification (`app/billing.py`).
-6. **Rate Limiting**: Built-in `slowapi` rate limiter on all endpoints to prevent API abuse.
-7. **CI/CD Automated Localization**: Comes with [`scripts/ci_check.py`](scripts/ci_check.py) and [`.github/workflows/polyglot-ci.yml`](.github/workflows/polyglot-ci.yml) to scan `locales/en.json` and generate localized files automatically.
+Existing localization tools (Lokalise, Phrase, Google Translate) treat strings as abstract text with arbitrary character limits. But character counts do not equal visual layout compatibility:
+- A German translation expanding by 35% causes fixed navigation links to truncate or wrap unexpectedly.
+- Action buttons in flex rows collide and overlap when labels expand.
+- Un-isolated mixed-direction text (e.g. `$49.99` in Arabic/Urdu) suffers from visual punctuation and symbol inversions.
+
+**Polyglot Engine** provides an autonomous, closed-loop engineering QA and repair workflow:
+1. **Tree-Walker Whole-DOM Discovery:** Discovers all visible text-bearing UI candidates across the entire DOM tree without relying on hardcoded tag lists.
+2. **In-Browser Visual Audit:** Measures live bounding box geometry in headless Chromium to detect container overflows, physical element collisions, and real visual BiDi symbol inversions.
+3. **Closed-Loop Verification:** Backtracks across linguistic length variants (`standard` $\rightarrow$ `compact` $\rightarrow$ `ultra_short`), injects calculated dynamic CSS, and verifies reflow in the browser.
+4. **Source-Code Git Patching:** Identifies the responsible stylesheet, modifies the CSS rules with property-level precision, validates via `git apply --check`, applies the patch on disk, and verifies that a clean application reload resolves all defects.
+
+```
+[Target Web Application] ──► polyglot scan / repair
+       │
+       ▼
+[DOM Discovery & Range Inspection]
+  • Whole-DOM traversal across standard elements and custom Web Components
+  • Live visual bounding-box collision detection
+  • Range-based visual BiDi symbol inversion detection (Zero False Positives)
+       │
+       ▼
+[Multi-Candidate Closed-Loop Repair]
+  • Pass 1: Standard translation baseline audit
+  • Pass 2 & 3: Multi-length linguistic variant backtracking (compact / ultra-short)
+  • Pass 4: Dynamic CSS layout repair (min-width, flex-shrink, margin-right, unicode-bidi)
+       │
+       ▼
+[Source-Code Patcher & Reload Verification]
+  • Targets the responsible stylesheet identified by the browser
+  • Produces genuine unified Git diff patch (validated via git apply --check)
+  • Applies patch on disk, removes in-memory overrides, reloads page, and re-verifies in browser
+```
+
+---
+
+## 🚀 CLI Commands
+
+```bash
+# 1. Whole-DOM multilingual audit across locales & viewports
+polyglot scan https://your-app.com --locales de-DE,ar-SA --viewports desktop,mobile
+
+# 2. Inspect root causes and layout constraints
+polyglot diagnose polyglot_audit_report.json
+
+# 3. Closed-loop repair with source-code Git patch generation & reload verification
+polyglot repair https://your-app.com --locales de-DE,ar-SA --repo-path /path/to/source --verify
+```
+
+---
+
+## 🛠️ Supporting Microservices (Headless Shaping API)
+
+As an optional backend service, Polyglot includes a FastAPI microservice that pairs HarfBuzz OpenType C-shaping (`<1.5ms`) and OpenAI structured outputs for headless advance-width pre-calculation. *(Note: Payment subscriptions and billing tiers are currently on hold to focus 100% on core engineering QA and verified repair).*
 
 ---
 

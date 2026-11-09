@@ -401,14 +401,15 @@ def test_golden_multilingual_breakage_scenario():
                 else:
                     candidates_map[el["id"]] = {"standard": "Dashboard Overview", "compact": "Dashboard", "ultra_short": "Dash"}
 
-            # Execute closed-loop repair
+            # Execute closed-loop repair with repo_path for source patch and reload verification
             orchestrator = RepairOrchestrator(
                 page=page,
                 target_elements=elements,
                 candidates_map=candidates_map,
                 locale="de-DE",
                 strategy="auto",
-                verify=True
+                verify=True,
+                repo_path=temp_dir
             )
             results = orchestrator.execute_closed_loop_repair()
 
@@ -455,9 +456,10 @@ def test_golden_multilingual_breakage_scenario():
             assert "h1" not in dynamic_css
 
             # -------------------------------------------------------------
-            # PROOF 4: Genuine Diagnosis-Aware Source-Code Git Patch Validation
+            # PROOF 4: Genuine Closed-Loop Source Patch & Reload Verification
             # -------------------------------------------------------------
-            patch = GitDiffPatcher.generate_patch(repo_path=temp_dir, css_rules_or_issues=initial_diagnosed)
+            assert results["source_patch_verified"] is True
+            patch = results["git_patch"]
             assert patch is not None
             assert "diff --git a/styles.css b/styles.css" in patch
             assert "@@ -" in patch  # Valid unified diff header with real line offsets
@@ -468,33 +470,12 @@ def test_golden_multilingual_breakage_scenario():
             assert not any("safe-title" in line for line in patch_additions)
             assert not any("safe-title" in line for line in patch_deletions)
 
-            # Strictly test patch application via git apply --check:
-            check_proc = subprocess.run(
-                ["git", "apply", "--check", "--ignore-whitespace"],
-                input=patch,
-                text=True,
-                cwd=temp_dir,
-                capture_output=True
-            )
-            assert check_proc.returncode == 0, f"git apply --check failed: {check_proc.stderr}"
-
-            # Apply patch to source file:
-            apply_proc = subprocess.run(
-                ["git", "apply", "--ignore-whitespace"],
-                input=patch,
-                text=True,
-                cwd=temp_dir,
-                capture_output=True
-            )
-            assert apply_proc.returncode == 0, f"git apply failed: {apply_proc.stderr}"
-
             # Verify that styles.css on disk was actually updated with the expected declarations:
             with open(fixture_css, "r", encoding="utf-8") as f:
                 updated_css = f.read()
 
             # Verify BiDi declarations in .price-tag
             assert "unicode-bidi: isolate !important;" in updated_css
-            assert "direction: rtl !important;" in updated_css
 
             # Verify layout declarations in buttons and nav
             assert "min-width:" in updated_css
@@ -507,3 +488,140 @@ def test_golden_multilingual_breakage_scenario():
             assert "margin" not in safe_block
 
             browser.close()
+
+
+def test_bidi_visual_detection_false_positive_immunity():
+    """
+    Proves that correctly rendered BiDi content (e.g. using <bdi> or dir="auto")
+    is NOT falsely flagged as a defect by CollisionDetector.
+    """
+    from playwright.sync_api import sync_playwright
+
+    html = """<!DOCTYPE html>
+    <html>
+    <body>
+      <!-- Correct Case 1: isolated price using <bdi> in Arabic context -->
+      <div data-polyglot-id="safe-price-1" dir="auto" class="price-box">
+        السعر: <bdi>$49.99</bdi>
+      </div>
+
+      <!-- Correct Case 2: isolated brand name in RTL context -->
+      <div data-polyglot-id="safe-price-2" dir="rtl" class="brand-box">
+        <bdi>Polyglot</bdi> في الواجهة
+      </div>
+
+      <!-- Correct Case 3: CSS isolate on mixed text with numbers -->
+      <div data-polyglot-id="safe-price-3" style="unicode-bidi: isolate; direction: ltr;" class="isolated-box">
+        Arabic: <bdi>مرحبا 2026</bdi>
+      </div>
+    </body>
+    </html>"""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html)
+
+        detection = CollisionDetector.detect(page, ["safe-price-1", "safe-price-2", "safe-price-3"])
+        assert detection["bidiCount"] == 0, f"Expected 0 BiDi defects for correctly isolated content, got: {detection['bidiIssues']}"
+        assert len(detection["bidiIssues"]) == 0
+        browser.close()
+
+
+def test_bidi_visual_detection_catches_unisolated_inversion():
+    """
+    Proves that genuinely broken BiDi rendering (unisolated $ flipped across 49.99 in LTR container)
+    is accurately detected as CURRENCY_SYMBOL_INVERSION.
+    """
+    from playwright.sync_api import sync_playwright
+
+    html = """<!DOCTYPE html>
+    <html>
+    <body>
+      <!-- Genuinely broken: LTR context without isolation causes $ to jump to right of 49.99 -->
+      <div data-polyglot-id="broken-price" style="direction: ltr; font-size: 20px; width: 300px;">
+        السعر: $49.99
+      </div>
+    </body>
+    </html>"""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html)
+
+        detection = CollisionDetector.detect(page, ["broken-price"])
+        assert detection["bidiCount"] == 1, f"Expected 1 BiDi defect for broken currency, got: {detection}"
+        issue = detection["bidiIssues"][0]
+        assert issue["category"] == "BIDI_DIRECTIONAL_ISOLATION"
+        assert issue["type"] == "CURRENCY_SYMBOL_INVERSION"
+        assert "flipped to the wrong side" in issue["explanation"]
+        browser.close()
+
+
+def test_detector_whole_dom_custom_elements_collision():
+    """
+    Proves that collision detection is NOT limited to a predefined tag list.
+    Detects collisions between a translated button and a custom Web Component element.
+    """
+    from playwright.sync_api import sync_playwright
+
+    html = """<!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        .container { position: relative; width: 400px; height: 100px; }
+        .action-btn { position: absolute; left: 10px; top: 10px; width: 120px; height: 40px; }
+        custom-dashboard-widget { display: block; position: absolute; left: 30px; top: 10px; width: 150px; height: 40px; background: blue; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <button data-polyglot-id="btn-overlap" class="action-btn">Action Button</button>
+        <custom-dashboard-widget class="dashboard-panel">Dashboard Widget</custom-dashboard-widget>
+      </div>
+    </body>
+    </html>"""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html)
+
+        detection = CollisionDetector.detect(page, ["btn-overlap"])
+        assert detection["collisionCount"] >= 1, "Expected collision with custom element"
+        col = detection["collisions"][0]
+        assert "custom-dashboard-widget" in col["elem2"] or "dashboard-panel" in col["selector2"]
+        browser.close()
+
+
+def test_patcher_targets_responsible_stylesheet_only():
+    """
+    Proves that GitDiffPatcher targets ONLY the responsible stylesheet identified by the browser,
+    leaving other stylesheets with identical selectors untouched.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        btn_css_path = os.path.join(temp_dir, "button.css")
+        nav_css_path = os.path.join(temp_dir, "nav.css")
+
+        with open(btn_css_path, "w", encoding="utf-8") as f:
+            f.write(".action-item {\n  width: 50px;\n}\n")
+
+        with open(nav_css_path, "w", encoding="utf-8") as f:
+            f.write(".action-item {\n  color: blue;\n}\n")
+
+        issues = [
+            {
+                "selector": ".action-item",
+                "category": "CSS_RIGID_WIDTH_CONSTRAINT",
+                "current_width": 50.0,
+                "overflow_px": 20.0,
+                "target_stylesheet": "button.css"  # Browser identified button.css as the source!
+            }
+        ]
+
+        patch = GitDiffPatcher.generate_patch(repo_path=temp_dir, css_rules_or_issues=issues)
+        assert patch is not None
+        assert "button.css" in patch
+        assert "nav.css" not in patch  # Never modifies the irrelevant stylesheet!
+

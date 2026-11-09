@@ -97,12 +97,12 @@ class GitDiffPatcher:
     @staticmethod
     def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> Tuple[str, bool]:
         """
-        Locates an existing CSS rule block for selector with exact word boundary and injects/updates declarations before closing brace.
+        Locates an existing CSS rule block for selector with exact word boundary.
+        Performs property-aware replacement of conflicting declarations (e.g. overrides negative margin-right)
+        or injects missing declarations before the closing brace.
         Returns (modified_content, modified_bool).
-        If the selector rule block is not defined in this stylesheet, leaves content untouched (returns False).
         """
         clean_sel = selector.strip()
-        # Ensure exact token/word boundary to prevent .btn matching .btn-primary
         esc_sel = re.escape(clean_sel)
         pattern = re.compile(
             r"(^|\n)([ \t]*[^{]*?(?:(?<![\w-])" + esc_sel + r"(?![\w-]))[^{]*\{)([^}]*)(\})",
@@ -118,13 +118,29 @@ class GitDiffPatcher:
         body = match.group(3)
         closing = match.group(4)
 
-        # Insert missing declarations
-        existing_body = body.rstrip()
         indent = "  "
-        new_decls = "\n".join(f"{indent}{d}" for d in declarations if d.strip() not in existing_body)
-        if new_decls:
-            updated_body = f"{existing_body}\n{new_decls}\n"
-        else:
+        updated_body = body
+        modified = False
+
+        for decl in declarations:
+            decl_clean = decl.strip().rstrip(";")
+            if ":" not in decl_clean:
+                continue
+            prop, val = [p.strip() for p in decl_clean.split(":", 1)]
+
+            # Check if property already exists in rule body
+            prop_regex = re.compile(r"(^[ \t]*" + re.escape(prop) + r"\s*:[^;]+;[^\n]*)", re.MULTILINE)
+            if prop_regex.search(updated_body):
+                # Replace existing property line with new declaration
+                updated_body = prop_regex.sub(f"{indent}{decl}", updated_body)
+                modified = True
+            else:
+                # Append before closing
+                trimmed = updated_body.rstrip()
+                updated_body = f"{trimmed}\n{indent}{decl}\n"
+                modified = True
+
+        if not modified or updated_body == body:
             return content, False
 
         new_content = content[:match.start()] + prefix + header + updated_body + closing + content[match.end():]
@@ -140,7 +156,8 @@ class GitDiffPatcher:
         """
         Searches local source stylesheet files for the matching selector, modifies in memory,
         and produces a genuine unified Git diff patch with exact line numbers.
-        If a list of diagnosed issues is provided, rules are generated in a diagnosis-aware manner.
+        If a list of diagnosed issues is provided, rules are generated in a diagnosis-aware manner,
+        and modifications target the responsible stylesheet identified by the browser.
         Strictly validates the patch using git apply --check when in a git repo.
         If validation fails, strictly rejects and returns None.
         """
@@ -148,8 +165,14 @@ class GitDiffPatcher:
         if not repo_path or not os.path.exists(repo_path) or not target_input:
             return None
 
+        selector_to_sheet = {}
         if isinstance(target_input, list):
             resolved_rules = DynamicCSSPatcher.generate_rules_map(target_input)
+            for issue in target_input:
+                sel = issue.get("selector")
+                sheet = issue.get("target_stylesheet")
+                if sel and sheet:
+                    selector_to_sheet[sel.strip()] = sheet.strip()
         else:
             resolved_rules = target_input
 
@@ -172,6 +195,7 @@ class GitDiffPatcher:
                 if file.endswith(STYLESHEET_EXTENSIONS):
                     fpath = os.path.join(root, file)
                     rel_path = os.path.relpath(fpath, repo_path).replace("\\", "/")
+                    filename = os.path.basename(fpath)
 
                     try:
                         with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
@@ -181,6 +205,12 @@ class GitDiffPatcher:
                         file_touched = False
 
                         for sel, decls in safe_rules.items():
+                            # If a specific target stylesheet was identified by the browser for this selector,
+                            # ensure we only modify THAT responsible stylesheet!
+                            expected_sheet = selector_to_sheet.get(sel)
+                            if expected_sheet and expected_sheet != filename and not rel_path.endswith(expected_sheet):
+                                continue
+
                             updated_text, changed = cls.apply_modifications_to_css(modified_content, sel, decls)
                             if changed:
                                 modified_content = updated_text
