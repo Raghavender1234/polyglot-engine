@@ -1,9 +1,9 @@
 """
 Polyglot Patcher — Dynamic CSS Generation & Source Repository Patching
-Generates targeted, calculated CSS rules based on diagnosed element geometry.
+Generates targeted, calculated CSS rules based on diagnosed element geometry and failure categories.
 Enforces safety rules to prevent modifying broad generic HTML selectors.
 When a local repository path is provided, locates the actual source stylesheet (never HTML),
-modifies the stylesheet rule in memory, produces a genuine unified Git diff,
+modifies the stylesheet rule in memory using diagnosis-aware declarations, produces a genuine unified Git diff,
 and STRICTLY validates it via `git apply --check`. If validation fails, the patch is rejected.
 """
 
@@ -11,7 +11,7 @@ import os
 import re
 import difflib
 import subprocess
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 
 UNSAFE_GENERIC_SELECTORS = {
     "button", "a", "div", "span", "p", "h1", "h2", "h3", "h4", "h5", "h6",
@@ -21,11 +21,11 @@ UNSAFE_GENERIC_SELECTORS = {
 STYLESHEET_EXTENSIONS = (".css", ".scss", ".sass", ".less", ".module.css")
 
 class DynamicCSSPatcher:
-    @staticmethod
-    def generate_css(diagnosed_issues: List[Dict[str, Any]]) -> str:
+    @classmethod
+    def generate_rules_map(cls, diagnosed_issues: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """
-        Dynamically calculates targeted CSS rules derived directly from failing element geometry.
-        Strictly rejects generic HTML tags to prevent cross-component layout damage.
+        Builds a diagnosis-aware CSS rule map.
+        Each issue category receives its appropriate CSS declarations (e.g. BiDi receives isolation, not width).
         """
         rules = {}
         for issue in diagnosed_issues:
@@ -46,15 +46,22 @@ class DynamicCSSPatcher:
                     "width: auto !important;",
                     "white-space: nowrap !important;"
                 ]
-            elif cat in ("FLEX_CONTAINER_NO_WRAP", "FLEX_SIBLING_OVERLAP"):
+            elif cat in ("FLEX_CONTAINER_NO_WRAP", "FLEX_SIBLING_OVERLAP", "ABSOLUTE_OR_FIXED_OVERLAP"):
                 rules[sel] = [
                     f"min-width: {needed_w:.0f}px !important;",
-                    "flex-shrink: 0 !important;"
+                    "flex-shrink: 0 !important;",
+                    "margin-right: 8px !important;"
                 ]
             elif cat == "TEXT_VERBOSITY_EXPANSION":
                 rules[sel] = [
                     "white-space: normal !important;",
                     "word-break: break-word !important;"
+                ]
+            elif cat == "BIDI_DIRECTIONAL_ISOLATION":
+                rules[sel] = [
+                    "unicode-bidi: isolate !important;",
+                    "direction: rtl !important;",
+                    "text-align: start !important;"
                 ]
             else:
                 rules[sel] = [
@@ -62,6 +69,15 @@ class DynamicCSSPatcher:
                     "flex-shrink: 0 !important;"
                 ]
 
+        return rules
+
+    @classmethod
+    def generate_css(cls, diagnosed_issues: List[Dict[str, Any]]) -> str:
+        """
+        Dynamically calculates targeted CSS rules derived directly from failing element geometry.
+        Strictly rejects generic HTML tags to prevent cross-component layout damage.
+        """
+        rules = cls.generate_rules_map(diagnosed_issues)
         if not rules:
             return "/* Polyglot: No CSS layout overrides required. Layout verified cleanly. */\n"
 
@@ -81,13 +97,15 @@ class GitDiffPatcher:
     @staticmethod
     def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> Tuple[str, bool]:
         """
-        Locates an existing CSS rule block for selector and injects/updates declarations before closing brace.
+        Locates an existing CSS rule block for selector with exact word boundary and injects/updates declarations before closing brace.
         Returns (modified_content, modified_bool).
         If the selector rule block is not defined in this stylesheet, leaves content untouched (returns False).
         """
         clean_sel = selector.strip()
+        # Ensure exact token/word boundary to prevent .btn matching .btn-primary
+        esc_sel = re.escape(clean_sel)
         pattern = re.compile(
-            r"(^|\n)([ \t]*[^{]*?" + re.escape(clean_sel) + r"[^{]*\{)([^}]*)(\})",
+            r"(^|\n)([ \t]*[^{]*?(?:(?<![\w-])" + esc_sel + r"(?![\w-]))[^{]*\{)([^}]*)(\})",
             re.MULTILINE
         )
 
@@ -113,18 +131,33 @@ class GitDiffPatcher:
         return new_content, True
 
     @classmethod
-    def generate_patch(cls, repo_path: Optional[str], css_rules: Dict[str, List[str]]) -> Optional[str]:
+    def generate_patch(
+        cls,
+        repo_path: Optional[str],
+        css_rules_or_issues: Union[Dict[str, List[str]], List[Dict[str, Any]], None] = None,
+        css_rules: Optional[Dict[str, List[str]]] = None
+    ) -> Optional[str]:
         """
         Searches local source stylesheet files for the matching selector, modifies in memory,
         and produces a genuine unified Git diff patch with exact line numbers.
+        If a list of diagnosed issues is provided, rules are generated in a diagnosis-aware manner.
         Strictly validates the patch using git apply --check when in a git repo.
         If validation fails, strictly rejects and returns None.
         """
-        if not repo_path or not os.path.exists(repo_path) or not css_rules:
+        target_input = css_rules_or_issues if css_rules_or_issues is not None else css_rules
+        if not repo_path or not os.path.exists(repo_path) or not target_input:
+            return None
+
+        if isinstance(target_input, list):
+            resolved_rules = DynamicCSSPatcher.generate_rules_map(target_input)
+        else:
+            resolved_rules = target_input
+
+        if not resolved_rules:
             return None
 
         # Filter unsafe generic selectors
-        safe_rules = {s: d for s, d in css_rules.items() if s.strip().lower() not in UNSAFE_GENERIC_SELECTORS}
+        safe_rules = {s: d for s, d in resolved_rules.items() if s.strip().lower() not in UNSAFE_GENERIC_SELECTORS}
         if not safe_rules:
             return None
 

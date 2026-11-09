@@ -1,13 +1,15 @@
 """
 Polyglot Scanner — DOM Element Discovery & Geometry Inspection
-Extracts interactive and text elements while deduplicating nested targets and resolving robust selectors.
+Extracts interactive and text elements across the entire DOM tree (not restricted to a hardcoded tag list)
+while deduplicating nested targets, filtering non-text/hidden nodes, and resolving robust selectors.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 JS_DISCOVER_ELEMENTS = """
 () => {
     function findTargetTextNode(element) {
+        // 1. Explicit text marker
         const explicitTextEl = element.querySelector('[data-polyglot-text]') || (element.hasAttribute('data-polyglot-text') ? element : null);
         if (explicitTextEl) {
             const walker = document.createTreeWalker(explicitTextEl, NodeFilter.SHOW_TEXT, null, false);
@@ -16,16 +18,31 @@ JS_DISCOVER_ELEMENTS = """
                 if (n.textContent.trim().length > 0) return n;
             }
         }
+
+        // 2. Direct child text node
         for (let i = 0; i < element.childNodes.length; i++) {
             const child = element.childNodes[i];
             if (child.nodeType === Node.TEXT_NODE && child.textContent.trim().length > 0) return child;
         }
+
+        // 3. For interactive or leaf elements, walk down into inline wrappers (e.g. <button><span>Text</span></button>)
+        // Structural containers (div, nav, section, ul, header, etc.) should NEVER steal text from child elements!
+        const tag = element.tagName.toLowerCase();
+        const isInteractiveOrLeaf = /^(button|a|summary|label|p|span|h[1-6])$/.test(tag) ||
+            element.getAttribute('role') === 'button' ||
+            element.getAttribute('role') === 'tab' ||
+            element.getAttribute('role') === 'menuitem';
+
+        if (!isInteractiveOrLeaf) {
+            return null;
+        }
+
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
             acceptNode(node) {
                 const parent = node.parentElement;
                 if (!parent) return NodeFilter.FILTER_REJECT;
-                const tag = parent.tagName.toLowerCase();
-                if (tag === 'svg' || tag === 'path' || tag === 'i' || tag === 'script' || tag === 'style') return NodeFilter.FILTER_REJECT;
+                const ptag = parent.tagName.toLowerCase();
+                if (ptag === 'svg' || ptag === 'path' || ptag === 'i' || ptag === 'script' || ptag === 'style') return NodeFilter.FILTER_REJECT;
                 return node.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
             }
         }, false);
@@ -98,29 +115,47 @@ JS_DISCOVER_ELEMENTS = """
 
     const discovered = [];
     const seenTextNodes = new Set();
-    const candidates = document.querySelectorAll(
-        'button, a, [role="button"], [role="tab"], .btn, nav a, h1, h2, h3, h4, label, [class*="price"], [class*="tag"], [class*="badge"], [class*="item"], [data-testid*="button"], [data-testid*="menu"], [data-testid*="nav"], p, span[class]'
-    );
+    const allDomElements = document.body ? document.body.querySelectorAll('*') : [];
+    let excludedCount = 0;
+
+    const NON_TEXT_TAGS = new Set([
+        'script', 'style', 'svg', 'path', 'noscript', 'template', 'iframe', 'canvas',
+        'video', 'audio', 'br', 'hr', 'meta', 'link', 'source', 'track'
+    ]);
 
     let assignedId = 0;
-    candidates.forEach((el) => {
+    allDomElements.forEach((el) => {
         if (el.closest('#polyglot-inspector-root')) return;
 
+        const tagName = el.tagName.toLowerCase();
+        if (NON_TEXT_TAGS.has(tagName)) {
+            excludedCount++;
+            return;
+        }
+
         const style = window.getComputedStyle(el);
-        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return;
+        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+            excludedCount++;
+            return;
+        }
 
         const rect = el.getBoundingClientRect();
-        if (rect.width <= 4 || rect.height <= 4) return;
+        if (rect.width <= 4 || rect.height <= 4) {
+            excludedCount++;
+            return;
+        }
 
         const textNode = findTargetTextNode(el);
-        if (!textNode) return;
+        if (!textNode) {
+            return;
+        }
 
         // Deduplication: Avoid selecting both parent and child for identical text
         if (seenTextNodes.has(textNode)) return;
         seenTextNodes.add(textNode);
 
         const rawText = textNode.textContent.trim();
-        if (!rawText || rawText.length < 2 || rawText.length > 100) return;
+        if (!rawText || rawText.length < 2 || rawText.length > 120) return;
 
         const padLeft = parseFloat(style.paddingLeft) || 0;
         const padRight = parseFloat(style.paddingRight) || 0;
@@ -143,7 +178,7 @@ JS_DISCOVER_ELEMENTS = """
 
         discovered.push({
             id: polyglotId,
-            tag: el.tagName.toLowerCase(),
+            tag: tagName,
             text: rawText,
             elementType: elemType,
             selector: buildStableSelector(el),
@@ -154,6 +189,8 @@ JS_DISCOVER_ELEMENTS = """
             rectHeight: rect.height,
             fontSize: parseFloat(style.fontSize) || 14.0,
             fontWeight: parseInt(style.fontWeight, 10) || 400,
+            direction: style.direction,
+            unicodeBidi: style.unicodeBidi,
             whiteSpace: style.whiteSpace,
             overflow: style.overflow,
             flexShrink: style.flexShrink,
@@ -165,11 +202,33 @@ JS_DISCOVER_ELEMENTS = """
         });
     });
 
-    return discovered;
+    return {
+        discovered: discovered,
+        totalDomElements: allDomElements.length,
+        excludedCount: excludedCount
+    };
 }
 """
 
 class DOMScanner:
     @staticmethod
     def discover_elements(page) -> List[Dict[str, Any]]:
-        return page.evaluate(JS_DISCOVER_ELEMENTS)
+        res = page.evaluate(JS_DISCOVER_ELEMENTS)
+        if isinstance(res, dict) and "discovered" in res:
+            return res["discovered"]
+        return res
+
+    @staticmethod
+    def discover_with_stats(page) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        res = page.evaluate(JS_DISCOVER_ELEMENTS)
+        if isinstance(res, dict) and "discovered" in res:
+            return res["discovered"], {
+                "totalDomElements": res.get("totalDomElements", 0),
+                "excludedByDesign": res.get("excludedCount", 0),
+                "discoveredCount": len(res.get("discovered", []))
+            }
+        return res, {
+            "totalDomElements": len(res),
+            "excludedByDesign": 0,
+            "discoveredCount": len(res)
+        }

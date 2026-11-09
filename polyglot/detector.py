@@ -1,7 +1,8 @@
 """
-Polyglot Detector — Full-Page Collision & Container Overflow Detection
+Polyglot Detector — Full-Page Collision, Container Overflow & In-Browser BiDi Detection
 Compares translated elements against ALL visible elements on the page (not just the translated subset),
-using stable integer element pair keys and intelligent filtering for intentional badges and overlays.
+uses stable integer element pair keys, evaluates genuine in-browser BiDi directional/isolation defects,
+and applies intelligent filtering for intentional badges, icons, and overlays.
 """
 
 from typing import Dict, Any, List
@@ -19,6 +20,7 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
 
     const overflows = [];
     const collisions = [];
+    const bidiIssues = [];
 
     // Helper: Build stable selector
     function getStableSelector(el) {
@@ -70,7 +72,41 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         }
     }
 
-    // 2. Discover ALL visible elements across the entire page
+    // 2. Check In-Browser BiDi Directional & Isolation Defects
+    for (const el of translatedEls) {
+        const text = (el.innerText || el.textContent || '').trim();
+        const hasRtlChars = /[\\u0600-\\u06FF\\u0750-\\u077F\\u0590-\\u05FF]/.test(text);
+        const hasLtrRun = /[\\$\\d\\%\\+\\-\\/\\#]/.test(text);
+
+        if (hasRtlChars && hasLtrRun) {
+            const style = window.getComputedStyle(el);
+            const hasIsolate = (style.unicodeBidi === 'isolate' ||
+                                style.unicodeBidi === 'isolate-override' ||
+                                style.unicodeBidi === 'plaintext' ||
+                                /[\\u2066\\u2067\\u2068]/.test(text));
+            const isRtlDir = (el.dir === 'rtl' ||
+                              style.direction === 'rtl' ||
+                              Boolean(el.closest('[dir="rtl"]')));
+
+            if (!hasIsolate || !isRtlDir) {
+                bidiIssues.push({
+                    id: el.getAttribute('data-polyglot-id'),
+                    tag: el.tagName.toLowerCase(),
+                    selector: getStableSelector(el),
+                    text: text.substring(0, 50),
+                    direction: style.direction,
+                    unicodeBidi: style.unicodeBidi,
+                    hasIsolate: hasIsolate,
+                    missingRtlDir: !isRtlDir,
+                    category: 'BIDI_DIRECTIONAL_ISOLATION',
+                    explanation: !isRtlDir ? 'RTL text rendered in LTR directional context without dir="rtl"' : 'Mixed-direction text missing Unicode bidirectional isolation',
+                    remedy: 'Set unicode-bidi: isolate; direction: rtl; or wrap numbers in Unicode isolates.'
+                });
+            }
+        }
+    }
+
+    // 3. Discover ALL visible elements across the entire page
     const allCandidates = document.querySelectorAll(
         'button, a, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], p, span, h1, h2, h3, h4, h5, h6, [role="row"], td, th, img, svg, nav, header, aside, .badge, .btn, [class*="item"], [class*="card"], [class*="btn"], [class*="link"]'
     );
@@ -109,8 +145,7 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         });
     }
 
-    // 3. Collision Evaluation: Compare translated elements against all visible elements
-    // Uses integer UIDs so distinct elements are NEVER falsely skipped by string casting!
+    // 4. Collision Evaluation: Compare translated elements against all visible elements
     const checkedPairs = new Set();
 
     for (let i = 0; i < visibleElements.length; i++) {
@@ -160,6 +195,7 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
 
                 collisions.push({
                     translatedId: item1.el.getAttribute('data-polyglot-id'),
+                    otherTranslatedId: item2.isTranslated ? item2.el.getAttribute('data-polyglot-id') : null,
                     elem1: item1.tag,
                     text1: item1.text,
                     selector1: item1.selector,
@@ -180,8 +216,11 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
     return {
         overflowCount: overflows.length,
         collisionCount: collisions.length,
+        bidiCount: bidiIssues.length,
+        totalDefects: overflows.length + collisions.length + bidiIssues.length,
         overflows: overflows,
-        collisions: collisions
+        collisions: collisions,
+        bidiIssues: bidiIssues
     };
 }
 """

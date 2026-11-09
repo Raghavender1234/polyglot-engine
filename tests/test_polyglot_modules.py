@@ -305,9 +305,18 @@ def test_golden_multilingual_breakage_scenario():
   width: 140px;
   margin-bottom: 30px;
 }
-.btn-action-1, .btn-action-2, .btn-action-3 {
+.btn-action-1 {
   min-width: 65px;
   margin-right: -25px; /* Overlap collision */
+  padding: 6px 10px;
+}
+.btn-action-2 {
+  min-width: 65px;
+  margin-right: -25px; /* Overlap collision */
+  padding: 6px 10px;
+}
+.btn-action-3 {
+  min-width: 65px;
   padding: 6px 10px;
 }
 .nav-bar {
@@ -315,7 +324,14 @@ def test_golden_multilingual_breakage_scenario():
   gap: 10px;
   margin-bottom: 30px;
 }
-.nav-link-item-1, .nav-link-item-2 {
+.nav-link-item-1 {
+  display: inline-block;
+  max-width: 45px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nav-link-item-2 {
   display: inline-block;
   max-width: 45px;
   overflow: hidden;
@@ -324,7 +340,6 @@ def test_golden_multilingual_breakage_scenario():
 }
 .pricing-card {
   width: 200px;
-  direction: rtl;
   margin-bottom: 30px;
 }
 .price-tag {
@@ -398,9 +413,8 @@ def test_golden_multilingual_breakage_scenario():
             results = orchestrator.execute_closed_loop_repair()
 
             # -------------------------------------------------------------
-            # PROOF 1: Accurate Problem Identification
+            # PROOF 1: Accurate Problem Identification of all 6 problems
             # -------------------------------------------------------------
-            # Baseline diagnosed issues across the page
             initial_diagnosed = results.get("initial_diagnosed_issues", results["diagnosed_issues"])
             initial_diag_selectors = [d.get("selector", "") for d in initial_diagnosed]
 
@@ -408,47 +422,51 @@ def test_golden_multilingual_breakage_scenario():
             assert any("nav-link-item-1" in s for s in initial_diag_selectors), f"nav-link-item-1 missing: {initial_diag_selectors}"
             assert any("nav-link-item-2" in s for s in initial_diag_selectors), f"nav-link-item-2 missing: {initial_diag_selectors}"
 
-            # 3 buttons identified with collisions:
-            btn_selectors = [s for s in initial_diag_selectors if "btn-action" in s]
-            assert len(btn_selectors) >= 2, f"Button collisions missing: {initial_diag_selectors}"
+            # All 3 individual buttons identified in collisions:
+            assert any("btn-action-1" in s for s in initial_diag_selectors), f"btn-action-1 missing: {initial_diag_selectors}"
+            assert any("btn-action-2" in s for s in initial_diag_selectors), f"btn-action-2 missing: {initial_diag_selectors}"
+            assert any("btn-action-3" in s for s in initial_diag_selectors), f"btn-action-3 missing: {initial_diag_selectors}"
 
-            # Arabic pricing element correctly diagnosed as BIDI_DIRECTIONAL_ISOLATION:
-            pricing_el = next((el for el in elements if "السعر" in el["text"] or "49.99" in el["text"]), None)
-            assert pricing_el is not None
-            pricing_diag = RootCauseDiagnoser.diagnose_overflow(pricing_el, overflow_px=10.0, locale="ar-SA")
-            assert pricing_diag["category"] == "BIDI_DIRECTIONAL_ISOLATION"
-            assert "Unicode isolation" in pricing_diag["remedy"]
+            # Arabic pricing element identified as In-Browser BiDi Defect directly by detector:
+            bidi_issues = [d for d in initial_diagnosed if d.get("category") == "BIDI_DIRECTIONAL_ISOLATION"]
+            assert len(bidi_issues) >= 1, f"Expected BiDi issues in browser detection: {initial_diagnosed}"
+            assert any("price-tag" in d.get("selector", "") for d in bidi_issues), f"price-tag missing in BiDi issues: {bidi_issues}"
+            assert results["initial_bidi_defects"] >= 1
 
             # -------------------------------------------------------------
-            # PROOF 2: Element 7 (.safe-title) Left Completely Untouched
+            # PROOF 2: All 6 Defects Repaired & Verified in Browser
             # -------------------------------------------------------------
-            # Post-repair DOM text remains identical:
+            assert results["verified"] is True
+            assert results["final_overflows"] == 0
+            assert results["final_collisions"] == 0
+            assert results["final_bidi_defects"] == 0
+            assert results["all_cleared"] is True
+
+            # -------------------------------------------------------------
+            # PROOF 3: Element 7 (.safe-title) Left Completely Untouched
+            # -------------------------------------------------------------
             untouched_final_text = page.evaluate("() => document.querySelector('.safe-title').textContent.trim()")
             assert untouched_final_text == "Dashboard Overview"
-
-            # Element 7 NEVER appeared in diagnosed layout failures:
             assert not any(".safe-title" in s or "safe-title" in s for s in initial_diag_selectors)
             assert not any("h1" == s for s in initial_diag_selectors)
 
-            # Dynamic CSS NEVER targets Element 7 or bare h1:
             dynamic_css = results.get("dynamic_css", "")
             assert ".safe-title" not in dynamic_css
             assert "h1" not in dynamic_css
 
             # -------------------------------------------------------------
-            # PROOF 3: Genuine Source-Code Git Patch Validation
+            # PROOF 4: Genuine Diagnosis-Aware Source-Code Git Patch Validation
             # -------------------------------------------------------------
-            css_rules_map = {}
-            for diag in initial_diagnosed:
-                sel = diag.get("selector")
-                if sel and ".safe-title" not in sel:
-                    css_rules_map[sel] = [f"min-width: 90px !important;", "flex-shrink: 0 !important;"]
-
-            patch = GitDiffPatcher.generate_patch(repo_path=temp_dir, css_rules=css_rules_map)
+            patch = GitDiffPatcher.generate_patch(repo_path=temp_dir, css_rules_or_issues=initial_diagnosed)
             assert patch is not None
             assert "diff --git a/styles.css b/styles.css" in patch
-            assert ".safe-title" not in patch
             assert "@@ -" in patch  # Valid unified diff header with real line offsets
+
+            # Ensure .safe-title is NEVER modified by the patch (no additions or deletions for safe-title)
+            patch_additions = [line for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")]
+            patch_deletions = [line for line in patch.splitlines() if line.startswith("-") and not line.startswith("---")]
+            assert not any("safe-title" in line for line in patch_additions)
+            assert not any("safe-title" in line for line in patch_deletions)
 
             # Strictly test patch application via git apply --check:
             check_proc = subprocess.run(
@@ -473,11 +491,19 @@ def test_golden_multilingual_breakage_scenario():
             # Verify that styles.css on disk was actually updated with the expected declarations:
             with open(fixture_css, "r", encoding="utf-8") as f:
                 updated_css = f.read()
-            assert "min-width: 90px !important;" in updated_css
+
+            # Verify BiDi declarations in .price-tag
+            assert "unicode-bidi: isolate !important;" in updated_css
+            assert "direction: rtl !important;" in updated_css
+
+            # Verify layout declarations in buttons and nav
+            assert "min-width:" in updated_css
+            assert "margin-right: 8px !important;" in updated_css
 
             # Verify that .safe-title rule in styles.css was left completely untouched:
             assert ".safe-title {\n  font-size: 20px;\n  width: auto;\n  max-width: 100%;\n}" in updated_css
             safe_block = updated_css[updated_css.index(".safe-title"):]
-            assert "min-width" not in safe_block  # Never injected layout override into safe element!
+            assert "min-width" not in safe_block
+            assert "margin" not in safe_block
 
             browser.close()

@@ -94,10 +94,10 @@ def cmd_scan(args):
                     page.wait_for_timeout(1000)
 
                     # 1. Discover Elements
-                    raw_elements = DOMScanner.discover_elements(page)
+                    raw_elements, stats = DOMScanner.discover_with_stats(page)
                     target_elements = raw_elements[:max_elements] if (max_elements and max_elements > 0) else raw_elements
                     skipped_count = max(0, len(raw_elements) - len(target_elements))
-                    print(f"🔍 Discovered {len(raw_elements)} UI candidates across entire DOM. Evaluated: {len(target_elements)} | Skipped: {skipped_count}")
+                    print(f"🔍 Discovered {len(raw_elements)} UI candidates across {stats['totalDomElements']} DOM nodes ({stats['excludedByDesign']} non-text/hidden excluded by design). Evaluated: {len(target_elements)} | Skipped: {skipped_count}")
 
                     # 2. Fetch Translations with Provenance
                     provenance_counts = {"OPENAI_API": 0, "PRESET": 0, "PSEUDO": 0, "FALLBACK": 0}
@@ -129,14 +129,16 @@ def cmd_scan(args):
                     page.evaluate(JS_APPLY_BATCH_TEXT, translations_payload)
                     page.wait_for_timeout(500)
 
-                    # 4. Detect Overflows & Full-Page Collisions
+                    # 4. Detect Overflows, Full-Page Collisions & BiDi Defects
                     detection = CollisionDetector.detect(page, target_ids)
                     overflow_count = detection["overflowCount"]
                     collision_count = detection["collisionCount"]
+                    bidi_count = detection.get("bidiCount", 0)
 
                     print(f"📊 Audit Results for {locale} ({vp_name}):")
                     print(f"   - Container Overflows: {overflow_count}")
                     print(f"   - Full-Page Collisions: {collision_count}")
+                    print(f"   - BiDi Directional / Isolation Defects: {bidi_count}")
                     print(f"   - Provenance: {provenance_counts}")
 
                     # 5. Diagnose Root Causes
@@ -163,6 +165,18 @@ def cmd_scan(args):
                         diag["overlap_px"] = col["overlapX"]
                         diagnosed_issues.append(diag)
 
+                    for bidi in detection.get("bidiIssues", []):
+                        diag = {
+                            "id": bidi.get("id"),
+                            "selector": bidi.get("selector"),
+                            "category": "BIDI_DIRECTIONAL_ISOLATION",
+                            "explanation": bidi.get("explanation"),
+                            "remedy": bidi.get("remedy"),
+                            "text": bidi.get("text"),
+                            "overflow_px": 0.0
+                        }
+                        diagnosed_issues.append(diag)
+
                     # 6. Capture Evidence Screenshot
                     screenshot_name = f"polyglot_scan_{locale}_{vp_name}.png"
                     screenshot_path = os.path.join(output_dir, screenshot_name)
@@ -176,13 +190,18 @@ def cmd_scan(args):
                         "total_scanned": len(raw_elements),
                         "total_evaluated": len(target_elements),
                         "total_skipped": skipped_count,
+                        "total_dom_elements": stats.get("totalDomElements", len(raw_elements)),
+                        "excluded_by_design": stats.get("excludedByDesign", 0),
                         "provenance_counts": provenance_counts,
                         "initial_overflows": overflow_count,
                         "initial_collisions": collision_count,
+                        "initial_bidi_defects": bidi_count,
                         "final_overflows": overflow_count,
                         "final_collisions": collision_count,
+                        "final_bidi_defects": bidi_count,
                         "resolved_overflows": 0,
                         "resolved_collisions": 0,
+                        "resolved_bidi_defects": 0,
                         "diagnosed_issues": diagnosed_issues,
                         "screenshots": {f"Scan {locale} ({vp_name})": screenshot_path}
                     }
@@ -308,10 +327,10 @@ def cmd_repair(args):
                     page.wait_for_timeout(1000)
 
                     # 1. Discover Elements
-                    raw_elements = DOMScanner.discover_elements(page)
+                    raw_elements, stats = DOMScanner.discover_with_stats(page)
                     target_elements = raw_elements[:max_elements] if (max_elements and max_elements > 0) else raw_elements
                     skipped_count = max(0, len(raw_elements) - len(target_elements))
-                    print(f"🔍 Discovered {len(raw_elements)} elements across DOM. Repairing {len(target_elements)} targets (Skipped: {skipped_count}).")
+                    print(f"🔍 Discovered {len(raw_elements)} elements across {stats['totalDomElements']} DOM nodes ({stats['excludedByDesign']} excluded by design). Repairing {len(target_elements)} targets (Skipped: {skipped_count}).")
 
                     # Capture initial baseline screenshot
                     orig_screenshot = os.path.join(output_dir, f"polyglot_repair_before_{locale}_{vp_name}.png")
@@ -353,10 +372,13 @@ def cmd_repair(args):
                     print(f"\n🏁 Closed-Loop Repair Finished for {locale} ({vp_name}):")
                     print(f"   - Initial Overflows:   {repair_results['initial_overflows']}")
                     print(f"   - Initial Collisions:  {repair_results['initial_collisions']}")
+                    print(f"   - Initial BiDi Flaws:  {repair_results.get('initial_bidi_defects', 0)}")
                     print(f"   - Final Overflows:     {repair_results['final_overflows']}")
                     print(f"   - Final Collisions:    {repair_results['final_collisions']}")
+                    print(f"   - Final BiDi Flaws:    {repair_results.get('final_bidi_defects', 0)}")
                     print(f"   - Overflows Cleared:   {repair_results['resolved_overflows']}")
                     print(f"   - Collisions Cleared:  {repair_results['resolved_collisions']}")
+                    print(f"   - BiDi Cleared:        {repair_results.get('resolved_bidi_defects', 0)}")
 
                     # Capture post-repair screenshot
                     post_screenshot = os.path.join(output_dir, f"polyglot_repair_after_{locale}_{vp_name}.png")
@@ -364,15 +386,9 @@ def cmd_repair(args):
 
                     # 4. Genuine Git Diff Patching if repo_path provided
                     git_patch_text = None
-                    if repo_path and repair_results.get("dynamic_css"):
-                        css_rules_map = {}
-                        for diag in repair_results.get("diagnosed_issues", []):
-                            sel = diag.get("selector")
-                            if sel:
-                                needed_w = diag.get("current_width", 60) + diag.get("overflow_px", 10) + 8
-                                css_rules_map[sel] = [f"min-width: {needed_w:.0f}px !important;", "flex-shrink: 0 !important;"]
-
-                        git_patch_text = GitDiffPatcher.generate_patch(repo_path, css_rules_map)
+                    if repo_path and (repair_results.get("dynamic_css") or repair_results.get("initial_diagnosed_issues")):
+                        all_diagnosed = repair_results.get("diagnosed_issues") or repair_results.get("initial_diagnosed_issues", [])
+                        git_patch_text = GitDiffPatcher.generate_patch(repo_path, all_diagnosed)
                         if git_patch_text:
                             patch_path = os.path.join(output_dir, f"polyglot_repair_{locale}_{vp_name}.patch")
                             with open(patch_path, "w", encoding="utf-8") as pf:
@@ -389,13 +405,18 @@ def cmd_repair(args):
                         "total_scanned": len(raw_elements),
                         "total_evaluated": len(target_elements),
                         "total_skipped": skipped_count,
+                        "total_dom_elements": stats.get("totalDomElements", len(raw_elements)),
+                        "excluded_by_design": stats.get("excludedByDesign", 0),
                         "provenance_counts": provenance_counts,
                         "initial_overflows": repair_results["initial_overflows"],
                         "initial_collisions": repair_results["initial_collisions"],
+                        "initial_bidi_defects": repair_results.get("initial_bidi_defects", 0),
                         "final_overflows": repair_results["final_overflows"],
                         "final_collisions": repair_results["final_collisions"],
+                        "final_bidi_defects": repair_results.get("final_bidi_defects", 0),
                         "resolved_overflows": repair_results["resolved_overflows"],
                         "resolved_collisions": repair_results["resolved_collisions"],
+                        "resolved_bidi_defects": repair_results.get("resolved_bidi_defects", 0),
                         "diagnosed_issues": repair_results["diagnosed_issues"],
                         "dynamic_css": repair_results.get("dynamic_css", ""),
                         "git_patch": git_patch_text,

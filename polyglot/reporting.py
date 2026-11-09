@@ -45,6 +45,8 @@ class HTMLReportGenerator:
         fin_col = data.get("final_collisions")
         init_ovf = data.get("initial_overflows", 0)
         fin_ovf = data.get("final_overflows")
+        init_bidi = data.get("initial_bidi_defects", 0)
+        fin_bidi = data.get("final_bidi_defects")
 
         is_verified = data.get("verified", True) and (fin_ovf is not None)
 
@@ -64,27 +66,30 @@ class HTMLReportGenerator:
             ovf_display = f"{init_ovf} → (Unverified)"
             col_display = f"{init_col} → (Unverified)"
             resolved_display = "Pending Verification"
-        elif init_col == 0 and init_ovf == 0:
+        elif init_col == 0 and init_ovf == 0 and (fin_bidi is None or fin_bidi == 0):
             status_text = "✅ Clean Layout — No Overflows or Collisions Detected"
             status_color = "#10b981"
             status_badge = "100% Compatible"
             ovf_display = f"{init_ovf} → 0"
             col_display = f"{init_col} → 0"
             resolved_display = "0"
-        elif fin_col == 0 and fin_ovf == 0:
-            status_text = f"✅ Verified Repaired — Resolved {init_col} Collisions & {init_ovf} Overflows"
+        elif fin_col == 0 and fin_ovf == 0 and (fin_bidi is None or fin_bidi == 0):
+            bidi_msg = f" & {init_bidi} BiDi Defects" if init_bidi else ""
+            status_text = f"✅ Verified Repaired — Resolved {init_col} Collisions, {init_ovf} Overflows{bidi_msg}"
             status_color = "#10b981"
             status_badge = "All Issues Repaired"
             ovf_display = f"{init_ovf} → 0"
             col_display = f"{init_col} → 0"
-            resolved_display = str((data.get('resolved_overflows') or 0) + (data.get('resolved_collisions') or 0))
+            resolved_count = (data.get('resolved_overflows') or 0) + (data.get('resolved_collisions') or 0) + (data.get('resolved_bidi_defects') or 0)
+            resolved_display = str(resolved_count)
         else:
             status_text = f"⚠️ Partial Repair — {fin_col} Collisions & {fin_ovf} Overflows Require Manual Styling"
             status_color = "#f59e0b"
             status_badge = "Manual Redesign Needed"
             ovf_display = f"{init_ovf} → {fin_ovf}"
             col_display = f"{init_col} → {fin_col}"
-            resolved_display = str((data.get('resolved_overflows') or 0) + (data.get('resolved_collisions') or 0))
+            resolved_count = (data.get('resolved_overflows') or 0) + (data.get('resolved_collisions') or 0) + (data.get('resolved_bidi_defects') or 0)
+            resolved_display = str(resolved_count)
 
         dynamic_css = data.get("dynamic_css", "")
         git_patch = data.get("git_patch", "")
@@ -93,6 +98,13 @@ class HTMLReportGenerator:
         total_scanned = data.get('total_scanned', 0)
         total_evaluated = data.get('total_evaluated', data.get('total_translated', 0))
         total_skipped = data.get('total_skipped', max(0, total_scanned - total_evaluated))
+        total_dom = data.get('total_dom_elements')
+        excluded_cnt = data.get('excluded_by_design')
+
+        if total_dom:
+            scan_summary = f"Evaluated across whole DOM: {total_dom} DOM nodes ({excluded_cnt or 0} non-text/hidden excluded by design) | {total_scanned} elements discovered | {total_evaluated} tested | {total_skipped} skipped."
+        else:
+            scan_summary = f"Evaluated across entire DOM: {total_scanned} elements discovered | {total_evaluated} tested | {total_skipped} skipped."
 
         return f"""<!DOCTYPE html>
 <html lang="en">
@@ -130,7 +142,7 @@ class HTMLReportGenerator:
     <div class="card" style="margin-bottom: 24px; border-left: 4px solid {status_color};">
       <div style="font-size: 16px; font-weight: 700; color: {status_color};">{status_text}</div>
       <div style="font-size: 13px; color: #94a3b8; margin-top: 4px;">
-        Evaluated across entire DOM: {total_scanned} elements discovered | {total_evaluated} tested | {total_skipped} skipped.
+        {scan_summary}
       </div>
     </div>
 
