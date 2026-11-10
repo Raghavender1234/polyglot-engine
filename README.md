@@ -1,21 +1,47 @@
 # Polyglot Engine — Autonomous Multilingual Layout Scanner & Verified Source Repair Engine
 
-> **Developer CLI & Verification Engine** that audits web applications across multiple locales and viewports, detects container overflows, full-page collisions, and visual BiDi inversion defects in the browser, and produces **closed-loop verified source-code Git patches** directly against your repository.
+> **Polyglot aims to make multilingual UI testing actionable by connecting browser-level layout defects to their linguistic or CSS causes, then generating and verifying targeted source-code repairs.**
 
 ---
 
-## ⚡ The Core Problem & Solution
+## 🏗️ 6-Layer Product Architecture
 
-Existing localization tools (Lokalise, Phrase, Google Translate) treat strings as abstract text with arbitrary character limits. But character counts do not equal visual layout compatibility:
-- A German translation expanding by 35% causes fixed navigation links to truncate or wrap unexpectedly.
-- Action buttons in flex rows collide and overlap when labels expand.
-- Un-isolated mixed-direction text (e.g. `$49.99` in Arabic/Urdu) suffers from visual punctuation and symbol inversions.
+Polyglot Engine connects browser inspection, localization context, root-cause diagnosis, and source-code repair across six distinct architectural layers:
 
-**Polyglot Engine** provides an autonomous, closed-loop engineering QA and repair workflow:
-1. **Tree-Walker Whole-DOM Discovery:** Discovers all visible text-bearing UI candidates across the entire DOM tree without relying on hardcoded tag lists.
-2. **In-Browser Visual Audit:** Measures live bounding box geometry in headless Chromium to detect container overflows, physical element collisions, and real visual BiDi symbol inversions.
-3. **Closed-Loop Verification:** Backtracks across linguistic length variants (`standard` $\rightarrow$ `compact` $\rightarrow$ `ultra_short`), injects calculated dynamic CSS, and verifies reflow in the browser.
-4. **Source-Code Git Patching:** Identifies the responsible stylesheet, modifies the CSS rules with property-level precision, validates via `git apply --check`, applies the patch on disk, and verifies that a clean application reload resolves all defects.
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. Polyglot Browser Scanner                                            │
+│    Playwright + whole-DOM tree walker + CSS computed styles + ranges   │
+├────────────────────────────────────────────────────────────────────────┤
+│ 2. Visual Verification                                                 │
+│    Screenshot capture + sub-pixel physical reflow & collision bounds   │
+├────────────────────────────────────────────────────────────────────────┤
+│ 3. Root-Cause Engine                                                   │
+│    Classifies: linguistic verbosity, rigid CSS, flex-wrap, BiDi        │
+├────────────────────────────────────────────────────────────────────────┤
+│ 4. Translation Repair                                                  │
+│    Closed-loop candidate backtracking: standard -> compact -> short    │
+├────────────────────────────────────────────────────────────────────────┤
+│ 5. CSS Repair                                                          │
+│    Targeted source patches on responsible stylesheets (CSS-aware)      │
+├────────────────────────────────────────────────────────────────────────┤
+│ 6. Cross-Locale Regression Verification                                │
+│    Rebuild, reload, rescan across locales & viewports; report rate     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ⚡ The Core Problem & Differentiated Proposition
+
+Existing localization tools (Phrase, Lokalise) manage strings in databases, while visual QA tools (Applitools, Percy) capture screenshot diffs and highlight changes.
+
+Polyglot focuses on a specific, actionable engineering workflow:
+1. **Identify whether the translation or the CSS constraint caused the problem.**
+2. **Determine if an approved compact translation solves it without changing code.**
+3. **If not, calculate the exact minimal CSS declaration on the responsible stylesheet.**
+4. **Apply the patch to source code and verify that a clean browser reload clears defects.**
+5. **Run cross-locale regression verification across other languages and responsive breakpoints to guarantee no new breakages were introduced.**
 
 ```
 [Target Web Application] ──► polyglot scan / repair

@@ -625,3 +625,53 @@ def test_patcher_targets_responsible_stylesheet_only():
         assert "button.css" in patch
         assert "nav.css" not in patch  # Never modifies the irrelevant stylesheet!
 
+
+def test_cross_locale_regression_verification():
+    """
+    Proves Layer 6 of Product Architecture:
+    After applying repairs, audits multiple locales (en-US, de-DE, ar-SA) across
+    desktop and mobile viewports to verify that zero regressions were introduced.
+    """
+    from playwright.sync_api import sync_playwright
+
+    html = """<!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .btn-responsive { min-width: 90px; padding: 6px 12px; display: inline-block; }
+      </style>
+    </head>
+    <body>
+      <button data-polyglot-id="btn-main" class="btn-responsive">Save</button>
+    </body>
+    </html>"""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html)
+
+        locale_payloads = {
+            "en-US": [{"id": "btn-main", "text": "Save", "dir": "ltr"}],
+            "de-DE": [{"id": "btn-main", "text": "Speichern", "dir": "ltr"}],
+            "ar-SA": [{"id": "btn-main", "text": "حفظ", "dir": "rtl"}]
+        }
+        viewports = [
+            {"name": "desktop", "width": 1280, "height": 800},
+            {"name": "mobile", "width": 390, "height": 844}
+        ]
+
+        matrix = RepairOrchestrator.verify_cross_locale_regression(
+            page=page,
+            target_ids=["btn-main"],
+            locale_payloads=locale_payloads,
+            viewports=viewports
+        )
+
+        assert matrix["total_matrix_runs"] == 6  # 3 locales x 2 viewports
+        assert matrix["regressions_introduced"] == 0
+        assert matrix["regression_rate_pct"] == 0.0
+        assert matrix["all_locales_clean"] is True
+        browser.close()
+

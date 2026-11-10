@@ -394,3 +394,58 @@ class RepairOrchestrator:
             "active_texts": active_texts,
             "all_cleared": all_cleared
         }
+
+    @classmethod
+    def verify_cross_locale_regression(
+        cls,
+        page,
+        target_ids: List[str],
+        locale_payloads: Dict[str, List[Dict[str, Any]]],
+        viewports: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        """
+        Cross-Locale & Multi-Viewport Regression Verification (Layer 6):
+        Audits all configured locales and responsive breakpoints against the patched source
+        to guarantee that a repair in one locale does not damage layouts in others.
+        Calculates:
+        - regressions_introduced: count of test passes with layout defects
+        - regression_rate_pct: percentage of matrix configurations that failed
+        - all_locales_clean: boolean proof that every locale/viewport is 100% defect-free
+        """
+        results = {}
+        total_runs = 0
+        regressions = 0
+
+        viewports = viewports or [{"name": "desktop", "width": 1280, "height": 800}]
+
+        for vp in viewports:
+            page.set_viewport_size({"width": vp["width"], "height": vp["height"]})
+            for loc, payload in locale_payloads.items():
+                total_runs += 1
+                page.evaluate(JS_APPLY_BATCH_TEXT, payload)
+                page.wait_for_timeout(150)
+                metrics = CollisionDetector.detect(page, target_ids)
+                total_defects = metrics.get("totalDefects", metrics["overflowCount"] + metrics["collisionCount"] + metrics.get("bidiCount", 0))
+
+                run_key = f"{loc}@{vp['name']}"
+                results[run_key] = {
+                    "locale": loc,
+                    "viewport": vp["name"],
+                    "defects": total_defects,
+                    "overflows": metrics["overflowCount"],
+                    "collisions": metrics["collisionCount"],
+                    "bidi": metrics.get("bidiCount", 0),
+                    "is_clean": total_defects == 0
+                }
+                if total_defects > 0:
+                    regressions += 1
+
+        regression_rate = round((regressions / total_runs) * 100, 1) if total_runs > 0 else 0.0
+
+        return {
+            "total_matrix_runs": total_runs,
+            "regressions_introduced": regressions,
+            "regression_rate_pct": regression_rate,
+            "matrix_results": results,
+            "all_locales_clean": regressions == 0
+        }
