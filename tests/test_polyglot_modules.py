@@ -675,3 +675,103 @@ def test_cross_locale_regression_verification():
         assert matrix["all_locales_clean"] is True
         browser.close()
 
+
+def test_patcher_brace_depth_skips_comments_and_media_queries():
+    """
+    Proves that GitDiffPatcher's brace-depth-aware CSS parser skips selectors inside
+    comments and nested @media queries, and patches only the top-level selector block.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        css_path = os.path.join(temp_dir, "complex.css")
+        original_css = """/* Commented out old rule:
+.btn-checkout {
+  width: 50px;
+}
+*/
+@media (max-width: 400px) {
+  .btn-checkout {
+    width: 90px;
+  }
+}
+.btn-checkout {
+  width: 110px;
+  color: white;
+}
+"""
+        with open(css_path, "w", encoding="utf-8") as f:
+            f.write(original_css)
+
+        issues = [{
+            "selector": ".btn-checkout",
+            "category": "CSS_RIGID_WIDTH_CONSTRAINT",
+            "current_width": 110.0,
+            "overflow_px": 40.0,
+            "target_stylesheet": "complex.css"
+        }]
+        patch = GitDiffPatcher.generate_patch(repo_path=temp_dir, css_rules_or_issues=issues)
+        assert patch is not None
+        assert "max-width: 100% !important;" in patch
+        assert "overflow-wrap: break-word !important;" in patch
+        # Must not inject white-space: nowrap on rigid-width elements
+        assert "white-space: nowrap" not in patch
+
+
+def test_repair_dry_run_rolls_back_working_tree_and_preserves_clean_git_status():
+    """
+    Proves that when apply_in_place=False (CLI default when --apply is not passed),
+    RepairOrchestrator verifies the patch via browser reload and then rolls back
+    the repository so git status remains 100% clean.
+    """
+    from playwright.sync_api import sync_playwright
+    from polyglot.scanner import DOMScanner
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        html_path = os.path.join(temp_dir, "index.html")
+        css_path = os.path.join(temp_dir, "styles.css")
+        orig_css = ".btn-tight {\n  display: inline-block;\n  max-width: 50px;\n  overflow: hidden;\n  white-space: nowrap;\n}\n"
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write('<!DOCTYPE html><html><head><link rel="stylesheet" href="styles.css"></head><body><button class="btn-tight">Subscribe Now</button></body></html>')
+        with open(css_path, "w", encoding="utf-8") as f:
+            f.write(orig_css)
+
+        subprocess.run(["git", "init"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=temp_dir, check=True, capture_output=True)
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto(f"file:///{html_path.replace(os.sep, '/')}")
+            elements = DOMScanner.discover_elements(page)
+            cands = {el["id"]: {"standard": "Abonnement jetzt abschließen", "compact": "Abonnieren", "ultra_short": "Abo"} for el in elements}
+
+            orch = RepairOrchestrator(
+                page=page,
+                target_elements=elements,
+                candidates_map=cands,
+                locale="de-DE",
+                strategy="css-only",
+                verify=True,
+                repo_path=temp_dir,
+                apply_in_place=False
+            )
+            res = orch.execute_closed_loop_repair()
+            browser.close()
+
+        assert res["verification_executed"] is True
+        assert res["source_patch_verified"] is True
+        assert res["all_defects_resolved"] is True
+        assert res["verified"] is True
+        assert res["applied_in_place"] is False
+        assert res["git_patch"] is not None
+
+        # Verify working tree was rolled back cleanly
+        with open(css_path, "r", encoding="utf-8") as f:
+            disk_css = f.read()
+        assert disk_css == orig_css
+        status_proc = subprocess.run(["git", "status", "--porcelain"], cwd=temp_dir, capture_output=True, text=True)
+        assert status_proc.stdout.strip() == ""
+
+

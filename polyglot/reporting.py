@@ -48,7 +48,8 @@ class HTMLReportGenerator:
         init_bidi = data.get("initial_bidi_defects", 0)
         fin_bidi = data.get("final_bidi_defects")
 
-        is_verified = data.get("verified", True) and (fin_ovf is not None)
+        verification_ran = data.get("verification_executed", data.get("verified", True)) and (fin_ovf is not None)
+        is_verified = data.get("verified", verification_ran)
 
         prov = data.get("provenance_counts", {})
         api_cnt = prov.get("OPENAI_API", 0)
@@ -59,7 +60,7 @@ class HTMLReportGenerator:
         api_pct = round((api_cnt / total_queries) * 100) if total_queries > 0 else 0
 
         # Honest status evaluation
-        if not is_verified:
+        if not verification_ran:
             status_text = "⚠️ Unverified Repairs Applied — Verification check was skipped (--no-verify)"
             status_color = "#f59e0b"
             status_badge = "Unverified"
@@ -73,7 +74,7 @@ class HTMLReportGenerator:
             ovf_display = f"{init_ovf} → 0"
             col_display = f"{init_col} → 0"
             resolved_display = "0"
-        elif fin_col == 0 and fin_ovf == 0 and (fin_bidi is None or fin_bidi == 0):
+        elif is_verified and fin_col == 0 and fin_ovf == 0 and (fin_bidi is None or fin_bidi == 0):
             bidi_msg = f" & {init_bidi} BiDi Defects" if init_bidi else ""
             status_text = f"✅ Verified Repaired — Resolved {init_col} Collisions, {init_ovf} Overflows{bidi_msg}"
             status_color = "#10b981"
@@ -383,7 +384,8 @@ class HTMLReportGenerator:
             fin_c = r.get("final_collisions")
             init_o = r.get("initial_overflows", 0)
             fin_o = r.get("final_overflows")
-            is_v = r.get("verified", True) and (fin_o is not None)
+            ver_ran = r.get("verification_executed", r.get("verified", True)) and (fin_o is not None)
+            is_v = r.get("verified", ver_ran)
 
             prov = r.get("provenance_counts", {})
             api_c = prov.get("OPENAI_API", 0)
@@ -391,7 +393,7 @@ class HTMLReportGenerator:
             tot_q = api_c + prov.get("PRESET", 0) + prov.get("PSEUDO", 0) + fall_c
             pct = round((api_c / tot_q) * 100) if tot_q > 0 else 0
 
-            if not is_v:
+            if not ver_ran:
                 status_lbl = "⚠️ Unverified"
                 ovf_s = f"{init_o} → (Unverified)"
                 col_s = f"{init_c} → (Unverified)"
@@ -399,7 +401,7 @@ class HTMLReportGenerator:
                 status_lbl = "✅ Clean"
                 ovf_s = f"{init_o} → 0"
                 col_s = f"{init_c} → 0"
-            elif fin_c == 0 and fin_o == 0:
+            elif is_v and fin_c == 0 and fin_o == 0:
                 status_lbl = "✅ Repaired"
                 ovf_s = f"{init_o} → 0"
                 col_s = f"{init_c} → 0"

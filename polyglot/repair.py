@@ -9,6 +9,7 @@ Executes configurable repair strategies:
 import os
 import subprocess
 from typing import Dict, Any, List, Tuple, Optional
+from .scanner import DOMScanner
 from .detector import CollisionDetector
 from .diagnosis import RootCauseDiagnoser
 from .patcher import DynamicCSSPatcher, GitDiffPatcher
@@ -82,7 +83,9 @@ class RepairOrchestrator:
         locale: str,
         strategy: str = "auto",
         verify: bool = True,
-        repo_path: Optional[str] = None
+        repo_path: Optional[str] = None,
+        apply_in_place: bool = True,
+        before_screenshot_path: Optional[str] = None
     ):
         self.page = page
         self.elements = target_elements
@@ -91,6 +94,8 @@ class RepairOrchestrator:
         self.strategy = strategy.lower().strip()  # "auto", "css-only", "text-only"
         self.verify = verify
         self.repo_path = repo_path
+        self.apply_in_place = apply_in_place
+        self.before_screenshot_path = before_screenshot_path
         self.target_ids = [el["id"] for el in target_elements]
 
     def execute_closed_loop_repair(self) -> Dict[str, Any]:
@@ -108,6 +113,12 @@ class RepairOrchestrator:
             })
 
         self.page.evaluate(JS_APPLY_BATCH_TEXT, pass1_payload)
+        if self.before_screenshot_path:
+            try:
+                self.page.wait_for_timeout(150)
+                self.page.screenshot(path=self.before_screenshot_path, full_page=True)
+            except Exception:
+                pass
         metrics_pass1 = CollisionDetector.detect(self.page, self.target_ids)
         initial_overflows = metrics_pass1["overflowCount"]
         initial_collisions = metrics_pass1["collisionCount"]
@@ -308,6 +319,7 @@ class RepairOrchestrator:
         git_patch_text = None
 
         if self.verify:
+            verification_executed = True
             final_metrics = CollisionDetector.detect(self.page, self.target_ids)
             final_overflows = final_metrics["overflowCount"]
             final_collisions = final_metrics["collisionCount"]
@@ -315,8 +327,8 @@ class RepairOrchestrator:
             resolved_overflows = max(0, initial_overflows - final_overflows)
             resolved_collisions = max(0, initial_collisions - final_collisions)
             resolved_bidi_defects = max(0, initial_bidi_defects - final_bidi_defects)
-            all_cleared = (final_overflows == 0 and final_collisions == 0 and final_bidi_defects == 0)
-            verified_status = True
+            all_defects_resolved = (final_overflows == 0 and final_collisions == 0 and final_bidi_defects == 0)
+            all_cleared = all_defects_resolved
 
             # Closed-Loop Source Patch Verification if repo_path provided
             if self.repo_path and os.path.exists(self.repo_path):
@@ -332,8 +344,23 @@ class RepairOrchestrator:
 
                 git_patch_text = GitDiffPatcher.generate_patch(self.repo_path, all_diagnosed)
                 if git_patch_text:
+                    # Snapshot stylesheet files before applying patch so we can guarantee a clean rollback
+                    snapshot_files: Dict[str, bytes] = {}
+                    for root_dir, dirs, files in os.walk(self.repo_path):
+                        if ".git" in dirs:
+                            dirs.remove(".git")
+                        for fname in files:
+                            if fname.endswith((".css", ".scss", ".less")):
+                                fpath = os.path.join(root_dir, fname)
+                                try:
+                                    with open(fpath, "rb") as bf:
+                                        snapshot_files[fpath] = bf.read()
+                                except Exception:
+                                    pass
+
+                    patch_applied_to_disk = False
                     try:
-                        # 1. Apply patch to clean source repo
+                        # 1. Apply patch to source repo for browser reload verification
                         proc = subprocess.run(
                             ["git", "apply", "--ignore-whitespace"],
                             input=git_patch_text,
@@ -342,11 +369,13 @@ class RepairOrchestrator:
                             capture_output=True
                         )
                         if proc.returncode == 0:
+                            patch_applied_to_disk = True
                             # 2. Remove in-memory dynamic CSS overrides completely
                             self.page.evaluate("() => { const s = document.getElementById('polyglot-dynamic-repair-patch'); if (s) s.remove(); }")
-                            # 3. Reload page from disk
+                            # 3. Reload page from disk and re-tag DOM elements with deterministic data-polyglot-id
                             self.page.reload(wait_until="domcontentloaded")
                             self.page.wait_for_timeout(300)
+                            DOMScanner.discover_elements(self.page)
                             # 4. Re-apply localized text state
                             reapply_payload = [
                                 {"id": el_id, "text": active_texts.get(el_id, ""), "dir": self.candidates.get(el_id, {}).get("dir", "")}
@@ -357,26 +386,63 @@ class RepairOrchestrator:
 
                             # 5. Measure on freshly reloaded page with ONLY the on-disk patch active!
                             src_metrics = CollisionDetector.detect(self.page, self.target_ids)
-                            if (src_metrics["overflowCount"] == 0 and
-                                src_metrics["collisionCount"] == 0 and
-                                src_metrics.get("bidiCount", 0) == 0):
+                            final_overflows = src_metrics["overflowCount"]
+                            final_collisions = src_metrics["collisionCount"]
+                            final_bidi_defects = src_metrics.get("bidiCount", 0)
+                            resolved_overflows = max(0, initial_overflows - final_overflows)
+                            resolved_collisions = max(0, initial_collisions - final_collisions)
+                            resolved_bidi_defects = max(0, initial_bidi_defects - final_bidi_defects)
+                            if (final_overflows == 0 and
+                                final_collisions == 0 and
+                                final_bidi_defects == 0):
                                 source_patch_verified = True
+                                all_defects_resolved = True
+                                all_cleared = True
+                            else:
+                                all_defects_resolved = False
+                                all_cleared = False
                     except Exception as e:
                         print(f"⚠️ Closed-loop source patch verification error: {e}")
+                    finally:
+                        # Never leave customer repository dirty on failed verification or when apply_in_place is False
+                        if patch_applied_to_disk and (not source_patch_verified or not self.apply_in_place):
+                            subprocess.run(
+                                ["git", "apply", "-R", "--ignore-whitespace"],
+                                input=git_patch_text,
+                                text=True,
+                                cwd=self.repo_path,
+                                capture_output=True
+                            )
+                            for fpath, orig_bytes in snapshot_files.items():
+                                try:
+                                    with open(fpath, "wb") as bf:
+                                        bf.write(orig_bytes)
+                                except Exception:
+                                    pass
+
+            if self.repo_path and git_patch_text:
+                verified_status = bool(verification_executed and all_defects_resolved and source_patch_verified)
+            else:
+                verified_status = bool(verification_executed and all_defects_resolved)
         else:
+            verification_executed = False
             final_overflows = None
             final_collisions = None
             final_bidi_defects = None
             resolved_overflows = None
             resolved_collisions = None
             resolved_bidi_defects = None
+            all_defects_resolved = False
             all_cleared = False
             verified_status = False
 
         return {
             "strategy": self.strategy,
+            "verification_executed": verification_executed,
+            "all_defects_resolved": all_defects_resolved,
             "verified": verified_status,
             "source_patch_verified": source_patch_verified,
+            "applied_in_place": bool(self.apply_in_place and source_patch_verified),
             "git_patch": git_patch_text,
             "initial_overflows": initial_overflows,
             "initial_collisions": initial_collisions,

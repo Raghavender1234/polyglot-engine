@@ -22,8 +22,19 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
     const collisions = [];
     const bidiIssues = [];
 
-    // Helper: Build stable selector
+    // Helper: Build stable selector (prefers authored stylesheet rule selector when present)
     function getStableSelector(el) {
+        const candidates = [];
+        if (el.id) candidates.push('#' + el.id);
+        if (el.className && typeof el.className === 'string') {
+            const classes = el.className.trim().split(/\\s+/).filter(c => c.length > 2 && !c.startsWith('css-'));
+            for (const c of classes) {
+                candidates.push('.' + c);
+            }
+        }
+        for (const cand of candidates) {
+            if (findRuleSourceSheet(cand)) return cand;
+        }
         if (el.id) return '#' + el.id;
         const testId = el.getAttribute('data-testid') || el.getAttribute('data-test');
         if (testId) return `[data-testid="${testId}"]`;
@@ -112,7 +123,7 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
         if (!hasRtlChars) continue;
 
         const style = window.getComputedStyle(el);
-        const isRtlContext = (el.dir === 'rtl' || style.direction === 'rtl' || Boolean(el.closest('[dir="rtl"]')));
+        const isRtlContext = (style.direction === 'rtl');
 
         // Check if explicitly isolated
         const hasExplicitIsolate = (
@@ -126,9 +137,16 @@ JS_DETECT_FULLPAGE_COLLISIONS = """
 
         let defectDetected = null;
 
-        // Check A: Visual Currency/Number Symbol Inversion
-        const numMatch = text.match(/([\\$€£¥#\\+\\-])\\s*(\\d+[\\d\\.,]*)/);
-        if (numMatch) {
+        // Check A: Visual Currency/Number Symbol Inversion (exclude spaced clause separators like " - ")
+        const isIsolatedRtl = (
+            (isRtlContext && hasExplicitIsolate) ||
+            /[\\u2066\\u2067\\u2068]/.test(text) ||
+            el.tagName.toLowerCase() === 'bdi' ||
+            Boolean(el.querySelector('bdi'))
+        );
+        const numMatch = text.match(/([\\$€£¥#]|(?<!\\s)[\\+\\-])\\s*(\\d+[\\d\\.,]*)/);
+        if (numMatch && !isIsolatedRtl) {
+
             const symbol = numMatch[1];
             const numPart = numMatch[2];
 

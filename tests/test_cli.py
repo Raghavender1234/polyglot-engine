@@ -22,6 +22,8 @@ from polyglot.cli import (
     write_ci_summary,
     evaluate_exit_code,
     load_project_config,
+    resolve_visual_ai_mode,
+    resolve_translation_mode,
     cmd_init,
     cmd_report,
 )
@@ -329,6 +331,44 @@ def test_visual_ai_inspector_dual_sampling_and_detection():
     assert visual_issues[0]["id"] == "2"
     assert visual_issues[0]["category"] == "VISUAL_AI_TEXT_ICON_OVERLAP"
     assert visual_issues[0]["caught_by_visual_ai_only"] is True
+
+
+def test_visual_ai_local_mode_never_calls_cloud_and_refuses_non_loopback():
+    """Proves --visual-ai=local never silently falls back to cloud API and rejects non-loopback Ollama URLs."""
+    with pytest.raises(RuntimeError, match="Privacy violation prevented"):
+        VisualAIInspector(mode="local", endpoint="https://remote-host.example.com/api/generate")
+
+    with pytest.raises(RuntimeError, match="Silent cloud fallback is disabled by design"):
+        VisualAIInspector(mode="local", endpoint="http://127.0.0.1:65534/api/generate")
+
+
+def test_cli_resolve_visual_ai_mode_respects_config():
+    """Proves polyglot.config.json 'visual_ai' is honored when --visual-ai flag is omitted on CLI."""
+    args = MagicMock()
+    args.visual_ai = None
+    assert resolve_visual_ai_mode(args, {"visual_ai": "local"}) == "local"
+    assert resolve_visual_ai_mode(args, {}) == "off"
+
+    args.visual_ai = "off"
+    assert resolve_visual_ai_mode(args, {"visual_ai": "local"}) == "off"
+
+
+def test_translation_privacy_local_mode_never_calls_external_api():
+    """Proves mode='local' never calls OpenAI even when OPENAI_API_KEY is present in environment."""
+    from app.engines.llm_translator import llm_engine
+
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-dummy-key"}):
+        with patch.object(llm_engine, "get_client") as mock_get_client:
+            variants, prov = llm_engine.translate_with_variants(
+                source_text="Unique Uncached String For Privacy Audit",
+                source_locale="en-US",
+                target_locale="de-DE",
+                bypass_presets=False,
+                mode="local"
+            )
+            assert prov == "PSEUDO"
+            assert not mock_get_client.called
+
 
 
 

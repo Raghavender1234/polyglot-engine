@@ -2,8 +2,9 @@
 Polyglot Patcher — Dynamic CSS Generation & Source Repository Patching
 Generates targeted, calculated CSS rules based on diagnosed element geometry and failure categories.
 Enforces safety rules to prevent modifying broad generic HTML selectors.
+Uses a brace-depth-aware CSS rule parser (ignoring comments and nested @media blocks) to update rules safely.
 When a local repository path is provided, locates the actual source stylesheet (never HTML),
-modifies the stylesheet rule in memory using diagnosis-aware declarations, produces a genuine unified Git diff,
+modifies the stylesheet rule in memory, produces a genuine unified Git diff,
 and STRICTLY validates it via `git apply --check`. If validation fails, the patch is rejected.
 """
 
@@ -20,18 +21,18 @@ UNSAFE_GENERIC_SELECTORS = {
 
 STYLESHEET_EXTENSIONS = (".css", ".scss", ".sass", ".less", ".module.css")
 
+
 class DynamicCSSPatcher:
     @classmethod
     def generate_rules_map(cls, diagnosed_issues: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """
         Builds a diagnosis-aware CSS rule map.
-        Each issue category receives its appropriate CSS declarations (e.g. BiDi receives isolation, not width).
+        Uses viewport-safe, logical CSS properties (avoiding destructive nowrap or LTR-only margins).
         """
-        rules = {}
+        rules: Dict[str, List[str]] = {}
         for issue in diagnosed_issues:
             sel = issue.get("selector", "").strip()
             if not sel or sel.lower() in UNSAFE_GENERIC_SELECTORS:
-                # Refuse unsafe bare tags
                 continue
 
             cat = issue.get("category", "")
@@ -42,19 +43,22 @@ class DynamicCSSPatcher:
             if cat == "CSS_RIGID_WIDTH_CONSTRAINT":
                 rules[sel] = [
                     f"min-width: {needed_w:.0f}px !important;",
-                    "max-width: none !important;",
+                    "max-width: 100% !important;",
                     "width: auto !important;",
-                    "white-space: nowrap !important;"
+                    "height: auto !important;",
+                    "overflow-wrap: break-word !important;"
                 ]
             elif cat in ("FLEX_CONTAINER_NO_WRAP", "FLEX_SIBLING_OVERLAP", "ABSOLUTE_OR_FIXED_OVERLAP"):
                 rules[sel] = [
                     f"min-width: {needed_w:.0f}px !important;",
                     "flex-shrink: 0 !important;",
+                    "margin-inline-end: 8px !important;",
                     "margin-right: 8px !important;"
                 ]
             elif cat == "TEXT_VERBOSITY_EXPANSION":
                 rules[sel] = [
                     "white-space: normal !important;",
+                    "overflow-wrap: break-word !important;",
                     "word-break: break-word !important;"
                 ]
             elif cat == "BIDI_DIRECTIONAL_ISOLATION":
@@ -95,28 +99,71 @@ class DynamicCSSPatcher:
 
 class GitDiffPatcher:
     @staticmethod
-    def apply_modifications_to_css(content: str, selector: str, declarations: List[str]) -> Tuple[str, bool]:
+    def _find_rule_block_bounds(content: str, selector: str) -> Optional[Tuple[int, int, int]]:
         """
-        Locates an existing CSS rule block for selector with exact word boundary.
-        Performs property-aware replacement of conflicting declarations (e.g. overrides negative margin-right)
-        or injects missing declarations before the closing brace.
-        Returns (modified_content, modified_bool).
+        Brace-depth-aware CSS tokenizer that locates the rule block `(header_start, brace_open, brace_close)`
+        for `selector` while skipping `/* ... */` comments and handling nested `@media` blocks.
         """
         clean_sel = selector.strip()
         esc_sel = re.escape(clean_sel)
-        pattern = re.compile(
-            r"(^|\n)([ \t]*[^{]*?(?:(?<![\w-])" + esc_sel + r"(?![\w-]))[^{]*\{)([^}]*)(\})",
-            re.MULTILINE
-        )
+        sel_re = re.compile(r"(?<![\w-])" + esc_sel + r"(?![\w-])")
 
-        match = pattern.search(content)
-        if not match:
+        n = len(content)
+        i = 0
+        block_start = 0
+
+        while i < n:
+            # Skip CSS comments
+            if content[i:i + 2] == "/*":
+                end_comment = content.find("*/", i + 2)
+                if end_comment == -1:
+                    break
+                i = end_comment + 2
+                block_start = i
+                continue
+
+            ch = content[i]
+            if ch == "{":
+                header_text = content[block_start:i]
+                if not header_text.strip().startswith("@"):
+                    # Normal selector rule block
+                    if sel_re.search(header_text):
+                        # Find matching closing brace
+                        depth = 1
+                        j = i + 1
+                        while j < n and depth > 0:
+                            if content[j:j + 2] == "/*":
+                                ec = content.find("*/", j + 2)
+                                j = (ec + 2) if ec != -1 else n
+                                continue
+                            if content[j] == "{":
+                                depth += 1
+                            elif content[j] == "}":
+                                depth -= 1
+                            j += 1
+                        if depth == 0:
+                            return (block_start, i, j - 1)
+                block_start = i + 1
+            elif ch == "}":
+                block_start = i + 1
+
+            i += 1
+
+        return None
+
+    @classmethod
+    def apply_modifications_to_css(cls, content: str, selector: str, declarations: List[str]) -> Tuple[str, bool]:
+        """
+        Locates an existing CSS rule block for selector using the brace-depth-aware tokenizer.
+        Performs property-aware replacement of conflicting declarations or injects missing declarations.
+        Returns (modified_content, modified_bool).
+        """
+        bounds = cls._find_rule_block_bounds(content, selector)
+        if not bounds:
             return content, False
 
-        prefix = match.group(1)
-        header = match.group(2)
-        body = match.group(3)
-        closing = match.group(4)
+        _, brace_open, brace_close = bounds
+        body = content[brace_open + 1:brace_close]
 
         indent = "  "
         updated_body = body
@@ -126,16 +173,13 @@ class GitDiffPatcher:
             decl_clean = decl.strip().rstrip(";")
             if ":" not in decl_clean:
                 continue
-            prop, val = [p.strip() for p in decl_clean.split(":", 1)]
+            prop, _ = [p.strip() for p in decl_clean.split(":", 1)]
 
-            # Check if property already exists in rule body
             prop_regex = re.compile(r"(^[ \t]*" + re.escape(prop) + r"\s*:[^;]+;[^\n]*)", re.MULTILINE)
             if prop_regex.search(updated_body):
-                # Replace existing property line with new declaration
                 updated_body = prop_regex.sub(f"{indent}{decl}", updated_body)
                 modified = True
             else:
-                # Append before closing
                 trimmed = updated_body.rstrip()
                 updated_body = f"{trimmed}\n{indent}{decl}\n"
                 modified = True
@@ -143,7 +187,7 @@ class GitDiffPatcher:
         if not modified or updated_body == body:
             return content, False
 
-        new_content = content[:match.start()] + prefix + header + updated_body + closing + content[match.end():]
+        new_content = content[:brace_open + 1] + updated_body + content[brace_close:]
         return new_content, True
 
     @classmethod
@@ -156,10 +200,7 @@ class GitDiffPatcher:
         """
         Searches local source stylesheet files for the matching selector, modifies in memory,
         and produces a genuine unified Git diff patch with exact line numbers.
-        If a list of diagnosed issues is provided, rules are generated in a diagnosis-aware manner,
-        and modifications target the responsible stylesheet identified by the browser.
         Strictly validates the patch using git apply --check when in a git repo.
-        If validation fails, strictly rejects and returns None.
         """
         target_input = css_rules_or_issues if css_rules_or_issues is not None else css_rules
         if not repo_path or not os.path.exists(repo_path) or not target_input:
@@ -179,14 +220,12 @@ class GitDiffPatcher:
         if not resolved_rules:
             return None
 
-        # Filter unsafe generic selectors
         safe_rules = {s: d for s, d in resolved_rules.items() if s.strip().lower() not in UNSAFE_GENERIC_SELECTORS}
         if not safe_rules:
             return None
 
         all_diffs = []
 
-        # Find matching stylesheet files ONLY (never touch HTML or non-stylesheets)
         for root, _, files in os.walk(repo_path):
             if any(part in root for part in [".git", "node_modules", ".venv", "__pycache__"]):
                 continue
@@ -205,8 +244,6 @@ class GitDiffPatcher:
                         file_touched = False
 
                         for sel, decls in safe_rules.items():
-                            # If a specific target stylesheet was identified by the browser for this selector,
-                            # ensure we only modify THAT responsible stylesheet!
                             expected_sheet = selector_to_sheet.get(sel)
                             if expected_sheet and expected_sheet != filename and not rel_path.endswith(expected_sheet):
                                 continue
@@ -238,7 +275,6 @@ class GitDiffPatcher:
 
         full_patch = "".join(all_diffs)
 
-        # Strict validation with git apply --check if repo is a git repository
         is_git_repo = os.path.exists(os.path.join(repo_path, ".git"))
         if is_git_repo:
             try:
@@ -251,7 +287,7 @@ class GitDiffPatcher:
                 )
                 if proc.returncode != 0:
                     print(f"❌ Git patch validation failed (git apply --check non-zero): {proc.stderr.strip()}")
-                    return None  # Enforce strict rejection of invalid patches!
+                    return None
             except Exception as e:
                 print(f"⚠️ Git validation check encountered error: {e}")
                 return None

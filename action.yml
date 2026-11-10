@@ -29,6 +29,18 @@ inputs:
     description: 'Path for the structured JSON audit output'
     required: false
     default: 'polyglot_audit_report.json'
+  visual-ai:
+    description: 'Visual AI inspection mode: off (default), local (100% local Moondream), or api (opt-in cloud)'
+    required: false
+    default: 'off'
+  translation-mode:
+    description: 'Translation mode: local (default, zero external calls) or openai (opt-in cloud LLM)'
+    required: false
+    default: 'local'
+  upload-artifacts:
+    description: 'Opt-in to upload HTML/JSON/PNG audit reports as GitHub Actions artifacts (default: false for privacy)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -51,13 +63,15 @@ runs:
         polyglot scan "${{ inputs.url }}" \
           --locales "${{ inputs.locales }}" \
           --viewports "${{ inputs.viewports }}" \
+          --visual-ai "${{ inputs.visual-ai }}" \
+          --translation-mode "${{ inputs.translation-mode }}" \
           --fail-on "${{ inputs.fail-on }}" \
           --output "${{ inputs.output-report }}" \
           --json "${{ inputs.output-json }}"
 
-    - name: Upload Visual HTML Report Artifact
+    - name: Upload Visual HTML Report Artifact (Opt-In)
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && inputs.upload-artifacts == 'true'
       with:
         name: polyglot-visual-audit-report
         path: |

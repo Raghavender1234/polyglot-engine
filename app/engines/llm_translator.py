@@ -1,8 +1,7 @@
 import os
 import json
 import re
-from typing import Dict, Optional, Tuple
-from openai import OpenAI
+from typing import Dict, Optional, Tuple, Any
 from ..models import TranslationVariants
 
 try:
@@ -27,10 +26,10 @@ PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
             cultural_notes="Urdu Nastaliq renders diagonally; preserve LTR price."
         ),
         "ar-sa": TranslationVariants(
-            standard="إتمام عملية الشراء - 49.99 $",
-            compact="إتمام الشراء - 49.99 $",
-            ultra_short="شراء - 49.99 $",
-            cultural_notes="Arabic prices often trail the noun in UI action buttons."
+            standard="إتمام عملية الشراء: $49.99",
+            compact="إتمام الشراء: $49.99",
+            ultra_short="شراء: $49.99",
+            cultural_notes="Arabic mixed-direction price requires BiDi isolation to prevent $ symbol inversion."
         ),
         "ja-jp": TranslationVariants(
             standard="購入を完了する - $49.99",
@@ -193,9 +192,9 @@ def generate_pseudoloc_variants(source_text: str, target_locale: str) -> Transla
 
 class LLMTranslator:
     def __init__(self):
-        self._client: Optional[OpenAI] = None
+        self._client: Optional[Any] = None
 
-    def get_client(self) -> Optional[OpenAI]:
+    def get_client(self) -> Optional[Any]:
         key = os.getenv("OPENAI_API_KEY")
         if not key:
             try:
@@ -206,7 +205,11 @@ class LLMTranslator:
                 pass
 
         if key and (not self._client or getattr(self._client, "api_key", None) != key):
-            self._client = OpenAI(api_key=key)
+            try:
+                from openai import OpenAI
+                self._client = OpenAI(api_key=key)
+            except ImportError:
+                return None
         return self._client
 
     def translate_with_variants(
@@ -215,53 +218,86 @@ class LLMTranslator:
         source_locale: str,
         target_locale: str,
         glossary: Optional[Dict[str, str]] = None,
-        bypass_presets: bool = False
+        bypass_presets: bool = False,
+        mode: str = "local"
     ) -> Tuple[TranslationVariants, str]:
         clean_key = source_text.strip().lower()
         clean_locale = target_locale.lower().replace("_", "-")
+
+        # 0. Identity pass-through for source locale (e.g. en-US)
+        if clean_locale.startswith("en"):
+            return TranslationVariants(
+                standard=source_text,
+                compact=source_text,
+                ultra_short=source_text,
+                cultural_notes="Source locale baseline."
+            ), "PRESET"
 
         # 1. Check offline high-quality presets first (unless bypass_presets is explicitly enabled)
         if not bypass_presets:
             if clean_key in PRESET_TRANSLATIONS and clean_locale in PRESET_TRANSLATIONS[clean_key]:
                 return PRESET_TRANSLATIONS[clean_key][clean_locale], "PRESET"
 
-        # 2. If OpenAI client is available, call gpt-4o-mini with structured outputs
-        client = self.get_client()
-        if client:
-            try:
-                system_prompt = (
-                    "You are a layout-aware localization engine. Translate the given UI string into the target locale.\n"
-                    "CRITICAL QUALITY RULES:\n"
-                    "- Never translate into English or prepend brackets like '[de-DE]'. Output authentic target language script.\n"
-                    "- Never truncate full sentences down to a single word. Maintain complete semantic integrity across all 3 variants.\n"
-                    "- Preserve all numbers, currency signs ($), variables, and brand names.\n\n"
-                    "Variant guidelines:\n"
-                    "1. standard: Idiomatic, polite, natural translation.\n"
-                    "2. compact: Tighter phrasing dropping redundant articles or using concise synonyms, strictly preserving meaning.\n"
-                    "3. ultra_short: Minimalist button action verb or concise summary phrase. Never orphan a noun or omit negation."
-                )
-                if glossary:
-                    system_prompt += f"\nLocked customer glossary terms:\n{json.dumps(glossary, ensure_ascii=False)}"
+        # 2. External OpenAI API is strictly opt-in (mode == "openai" or bypass_presets == True)
+        #    When mode == "local" (CLI default), zero website text ever leaves the machine.
+        if mode == "openai" or bypass_presets:
+            client = self.get_client()
+            if client:
+                try:
+                    system_prompt = (
+                        "You are a layout-aware localization engine. Translate the given UI string into the target locale.\n"
+                        "CRITICAL QUALITY RULES:\n"
+                        "- Never translate into English or prepend brackets like '[de-DE]'. Output authentic target language script.\n"
+                        "- Never truncate full sentences down to a single word. Maintain complete semantic integrity across all 3 variants.\n"
+                        "- Preserve all numbers, currency signs ($), variables, and brand names.\n\n"
+                        "Variant guidelines:\n"
+                        "1. standard: Idiomatic, polite, natural translation.\n"
+                        "2. compact: Tighter phrasing dropping redundant articles or using concise synonyms, strictly preserving meaning.\n"
+                        "3. ultra_short: Minimalist button action verb or concise summary phrase. Never orphan a noun or omit negation."
+                    )
+                    if glossary:
+                        system_prompt += f"\nLocked customer glossary terms:\n{json.dumps(glossary, ensure_ascii=False)}"
 
-                user_prompt = f"Source Text: \"{source_text}\"\nSource Locale: {source_locale}\nTarget Locale: {target_locale}"
+                    user_prompt = f"Source Text: \"{source_text}\"\nSource Locale: {source_locale}\nTarget Locale: {target_locale}"
 
-                completion = client.beta.chat.completions.parse(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format=TranslationVariants,
-                    temperature=0.2,
-                )
-                parsed = completion.choices[0].message.parsed
-                if parsed:
-                    return parsed, "OPENAI_API"
-            except Exception as e:
-                print(f"[LLMTranslator] OpenAI call failed: {e}. Falling back to pseudo-localization.")
-                return generate_pseudoloc_variants(source_text, target_locale), "FALLBACK"
+                    completion = client.beta.chat.completions.parse(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        response_format=TranslationVariants,
+                        temperature=0.2,
+                    )
+                    parsed = completion.choices[0].message.parsed
+                    if parsed:
+                        return parsed, "OPENAI_API"
+                except Exception as e:
+                    print(f"[LLMTranslator] OpenAI call failed: {e}. Falling back to pseudo-localization.")
+                    return generate_pseudoloc_variants(source_text, target_locale), "FALLBACK"
 
-        # 3. Fallback: Standard I18N Pseudo-Localization Engine (stress-tests layout without deceptive word truncation)
+        # 3. Local Fallback: Standard I18N Pseudo-Localization Engine (100% local, zero external network calls)
         return generate_pseudoloc_variants(source_text, target_locale), "PSEUDO"
+
+    def generate_variants_with_provenance(
+        self,
+        source_text: str,
+        target_locale: str,
+        element_type: str = "span",
+        bypass_presets: bool = False,
+        mode: str = "local"
+    ) -> Tuple[Dict[str, str], str]:
+        variants, prov = self.translate_with_variants(
+            source_text=source_text,
+            source_locale="en-US",
+            target_locale=target_locale,
+            bypass_presets=bypass_presets,
+            mode=mode
+        )
+        return {
+            "standard": variants.standard,
+            "compact": variants.compact,
+            "ultra_short": variants.ultra_short
+        }, prov
 
 llm_engine = LLMTranslator()

@@ -61,6 +61,24 @@ def load_project_config(config_path: str = "polyglot.config.json") -> Dict[str, 
     return {}
 
 
+def resolve_visual_ai_mode(args, proj_cfg: Dict[str, Any]) -> str:
+    """Resolves Visual AI mode from CLI flag (--visual-ai) or polyglot.config.json, defaulting to 'off'."""
+    cli_val = getattr(args, "visual_ai", None)
+    if cli_val is not None:
+        return cli_val
+    return proj_cfg.get("visual_ai", "off")
+
+
+def resolve_translation_mode(args, proj_cfg: Dict[str, Any]) -> str:
+    """Resolves translation mode from CLI flag (--translation-mode) or polyglot.config.json, defaulting to 'local'."""
+    if getattr(args, "bypass_presets", False):
+        return "openai"
+    cli_val = getattr(args, "translation_mode", None)
+    if cli_val is not None:
+        return cli_val
+    return proj_cfg.get("translation_mode", "local")
+
+
 def format_verify_scorecard(target_url: str, ver_data: Dict[str, Any]) -> str:
     """Renders an ASCII scorecard for Layer 6 Cross-Locale Regression Verification."""
     lines = []
@@ -368,8 +386,9 @@ def cmd_scan(args):
                     target_ids = []
 
                     is_rtl = locale.lower().startswith(("ar", "ur", "he", "fa"))
+                    trans_mode = resolve_translation_mode(args, proj_cfg)
 
-                    print(f"🤖 Generating translations for {locale} (Bypass presets: {bypass_presets})...")
+                    print(f"🤖 Generating translations for {locale} (Mode: {trans_mode}, Bypass presets: {bypass_presets})...")
                     for el in target_elements:
                         orig_text = el["text"]
                         target_ids.append(el["id"])
@@ -378,7 +397,8 @@ def cmd_scan(args):
                             source_text=orig_text,
                             source_locale="en-US",
                             target_locale=locale,
-                            bypass_presets=bypass_presets
+                            bypass_presets=bypass_presets,
+                            mode=trans_mode
                         )
                         provenance_counts[source] = provenance_counts.get(source, 0) + 1
 
@@ -441,7 +461,7 @@ def cmd_scan(args):
                         diagnosed_issues.append(diag)
 
                     # 5b. Layer 2 Visual AI Inspection (Enhanced Mode: dual-samples flagged + geometry-clean elements)
-                    visual_mode = getattr(args, "visual_ai", "off") or proj_cfg.get("visual_ai", "off")
+                    visual_mode = resolve_visual_ai_mode(args, proj_cfg)
                     visual_inspector = VisualAIInspector(mode=visual_mode)
                     if visual_inspector.is_enabled:
                         print(f"👁️  Running Enhanced Visual AI Inspection (mode={visual_mode}, dual-sampling flagged + clean elements)...")
@@ -632,22 +652,23 @@ def cmd_repair(args):
                     skipped_count = max(0, len(raw_elements) - len(target_elements))
                     print(f"🔍 Discovered {len(raw_elements)} elements across {stats['totalDomElements']} DOM nodes ({stats['excludedByDesign']} excluded by design). Repairing {len(target_elements)} targets (Skipped: {skipped_count}).")
 
-                    # Capture initial baseline screenshot
+                    # Prepare before-repair screenshot path (captured on broken Pass 1 localized state)
                     orig_screenshot = os.path.join(output_dir, f"polyglot_repair_before_{locale}_{vp_name}.png")
-                    page.screenshot(path=orig_screenshot, full_page=True)
 
                     # 2. Fetch Multi-Length Translation Candidates
                     candidates_map = {}
                     provenance_counts = {"OPENAI_API": 0, "PRESET": 0, "PSEUDO": 0, "FALLBACK": 0}
                     is_rtl = locale.lower().startswith(("ar", "ur", "he", "fa"))
+                    trans_mode = resolve_translation_mode(args, proj_cfg)
 
-                    print(f"🤖 Fetching multi-candidate translations for {locale}...")
+                    print(f"🤖 Fetching multi-candidate translations for {locale} (Mode: {trans_mode})...")
                     for el in target_elements:
                         variants, source = llm_engine.translate_with_variants(
                             source_text=el["text"],
                             source_locale="en-US",
                             target_locale=locale,
-                            bypass_presets=bypass_presets
+                            bypass_presets=bypass_presets,
+                            mode=trans_mode
                         )
                         provenance_counts[source] = provenance_counts.get(source, 0) + 1
 
@@ -659,6 +680,7 @@ def cmd_repair(args):
                         }
 
                     # 3. Execute Closed-Loop Repair Orchestrator with strategy & verify controls
+                    apply_in_place = getattr(args, "apply", False)
                     orchestrator = RepairOrchestrator(
                         page=page,
                         target_elements=target_elements,
@@ -666,7 +688,9 @@ def cmd_repair(args):
                         locale=locale,
                         strategy=strategy,
                         verify=verify,
-                        repo_path=repo_path
+                        repo_path=repo_path,
+                        apply_in_place=apply_in_place,
+                        before_screenshot_path=orig_screenshot
                     )
                     repair_results = orchestrator.execute_closed_loop_repair()
 
@@ -682,6 +706,10 @@ def cmd_repair(args):
                     print(f"   - BiDi Cleared:        {repair_results.get('resolved_bidi_defects', 0)}")
                     if repair_results.get("source_patch_verified"):
                         print(f"   - Source Patch Reload: ✅ 100% Verified in clean browser reload!")
+                        if apply_in_place:
+                            print(f"   - Repository State:    ✅ Applied in place (--apply enabled)")
+                        else:
+                            print(f"   - Repository State:    🛡️ Clean working tree preserved (use --apply to modify source in place)")
 
                     # Capture post-repair screenshot
                     post_screenshot = os.path.join(output_dir, f"polyglot_repair_after_{locale}_{vp_name}.png")
@@ -705,7 +733,11 @@ def cmd_repair(args):
                         "locale": locale,
                         "viewport": f"{vp_name} ({vp['width']}x{vp['height']})",
                         "strategy": strategy,
-                        "verified": repair_results.get("verified", True),
+                        "verification_executed": repair_results.get("verification_executed", verify),
+                        "all_defects_resolved": repair_results.get("all_defects_resolved", False),
+                        "source_patch_verified": repair_results.get("source_patch_verified", False),
+                        "applied_in_place": repair_results.get("applied_in_place", False),
+                        "verified": repair_results.get("verified", False),
                         "total_scanned": len(raw_elements),
                         "total_evaluated": len(target_elements),
                         "total_skipped": skipped_count,
@@ -778,6 +810,8 @@ def cmd_init(args):
         "locales": locales,
         "viewports": viewports,
         "strategy": "auto",
+        "visual_ai": "off",
+        "translation_mode": "local",
         "fail_on": "any",
         "output_report": "polyglot_audit_report.html"
     }
@@ -823,6 +857,7 @@ def cmd_verify(args):
     vp_names = [vp.strip().lower() for vp in raw_viewports.split(",") if vp.strip()]
     vp_list = [{"name": vn, **VIEWPORT_PRESETS.get(vn, VIEWPORT_PRESETS["desktop"])} for vn in vp_names]
     headless = not args.no_headless
+    trans_mode = resolve_translation_mode(args, proj_cfg)
 
     print(f"🛡️  Polyglot Cross-Locale Regression Verification for: {url}")
     print(f"🌍 Matrix Locales: {', '.join(locales)} | Viewports: {', '.join(vp_names)}")
@@ -843,16 +878,17 @@ def cmd_verify(args):
                     if loc.startswith("en"):
                         payload.append({"id": el["id"], "text": orig_text, "dir": "ltr"})
                     else:
-                        variants, _ = llm_engine.generate_variants_with_provenance(
+                        variants, _ = llm_engine.translate_with_variants(
                             source_text=orig_text,
+                            source_locale="en-US",
                             target_locale=loc,
-                            element_type=el.get("tag", "span"),
-                            bypass_presets=False
+                            bypass_presets=False,
+                            mode=trans_mode
                         )
                         is_rtl = loc.split("-")[0] in ("ar", "he", "fa", "ur")
                         payload.append({
                             "id": el["id"],
-                            "text": variants.get("standard", orig_text),
+                            "text": variants.standard,
                             "dir": "rtl" if is_rtl else "ltr"
                         })
                 locale_payloads[loc] = payload
@@ -910,12 +946,14 @@ def _configure_repair_args(subparser):
     subparser.add_argument("--verify", action="store_true", default=True, help="Verify repairs in isolated browser")
     subparser.add_argument("--no-verify", action="store_false", dest="verify", help="Disable post-repair verification check")
     subparser.add_argument("--repo-path", default=None, help="Path to local source repository for Git diff patching")
+    subparser.add_argument("--apply", action="store_true", default=False, help="Apply verified source-code patch directly to --repo-path in place (default: dry-run verification that rolls back working tree and writes .patch file)")
     subparser.add_argument("--output", default="polyglot_repair_report.html", help="Path to write HTML report")
     subparser.add_argument("--json", default=None, help="Path to write JSON report")
     subparser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     subparser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
+    subparser.add_argument("--translation-mode", default=None, choices=["local", "openai"], help="Translation privacy mode: 'local' (presets + offline pseudo-loc, zero network calls) or 'openai' (opt-in cloud LLM)")
     subparser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
-    subparser.add_argument("--visual-ai", default="off", choices=["off", "moondream", "moondream3_api", "ollama", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only) or 'moondream'/'ollama' (Enhanced dual-sampling)")
+    subparser.add_argument("--visual-ai", default=None, choices=["off", "local", "api", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only), 'local' (100%% local Moondream inference; never calls cloud), or 'api' (opt-in Moondream Cloud API)")
     subparser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' remaining defect, 'critical' only, or 'none'")
     subparser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     subparser.set_defaults(func=cmd_repair)
@@ -945,8 +983,9 @@ def main():
     scan_parser.add_argument("--json", default=None, help="Path to write JSON report")
     scan_parser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     scan_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
+    scan_parser.add_argument("--translation-mode", default=None, choices=["local", "openai"], help="Translation privacy mode: 'local' (presets + offline pseudo-loc, zero network calls) or 'openai' (opt-in cloud LLM)")
     scan_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to inspect (default: 0 = unlimited whole-page scan)")
-    scan_parser.add_argument("--visual-ai", default="off", choices=["off", "moondream", "moondream3_api", "ollama", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only) or 'moondream'/'ollama' (Enhanced dual-sampling)")
+    scan_parser.add_argument("--visual-ai", default=None, choices=["off", "local", "api", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only), 'local' (100%% local Moondream inference; never calls cloud), or 'api' (opt-in Moondream Cloud API)")
     scan_parser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' defect found, 'critical' only, or 'none'")
 
     scan_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
@@ -971,6 +1010,7 @@ def main():
     ver_parser.add_argument("url", nargs="?", default=None, help="Target URL to verify (or read from polyglot.config.json)")
     ver_parser.add_argument("--locales", default="en-US,de-DE,ar-SA", help="Comma-separated locales to verify against regressions")
     ver_parser.add_argument("--viewports", default="desktop,mobile", help="Comma-separated viewports: desktop, mobile, tablet")
+    ver_parser.add_argument("--translation-mode", default=None, choices=["local", "openai"], help="Translation privacy mode: 'local' or 'openai'")
     ver_parser.add_argument("--fail-on", choices=["any", "none"], default="any", help="Exit with code 1 if any regression is detected")
     ver_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     ver_parser.set_defaults(func=cmd_verify)
