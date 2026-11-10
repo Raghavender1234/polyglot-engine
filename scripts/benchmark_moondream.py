@@ -1,15 +1,13 @@
-"""Standalone Benchmark Harness for Moondream 2 Visual Multilingual Defect Detection.
+"""Standalone Benchmark Harness for Moondream 3.1 & 2 Visual Multilingual Defect Detection.
 
-This experiment evaluates whether a small vision model (Moondream 2) can
-accurately distinguish visually defective multilingual UI components from clean controls,
-without relying on pixel diffing or altering core Polyglot engine code.
+This experiment evaluates whether Moondream (3.1 MoE or 2) can accurately distinguish
+visually defective multilingual UI components from clean controls, without relying on
+brittle pixel diffing or altering core Polyglot engine code.
 
-Benchmark suite:
-- 50 labelled test cases:
-    - 25 positive defects: text clipping, font overflow, icon overlap, BiDi punctuation displacement.
-    - 25 negative controls: valid tight margins, correct BiDi numerals/currencies,
-      Japanese/Hindi rendering, valid multiline wraps, pill badges.
-- Evaluates precision, recall, false positive rate, latency, and memory usage.
+3-Layer Architecture Context:
+- Layer 1 (Playwright): Deterministic ground truth (scrollWidth, bounding box, CSS computed styles).
+- Layer 2 (Moondream): Visual interpretation (semantic defect classification, occlusion, legibility).
+- Layer 3 (Polyglot Repair): Root-cause diagnosis, targeted CSS/i18n patches, and closed-loop verification.
 """
 
 from __future__ import annotations
@@ -686,24 +684,36 @@ Return strictly a JSON object:
 
 
 class MoondreamClient:
-    """Pluggable adapter for Moondream 2 inference."""
+    """Pluggable adapter for Moondream (3.1 Cloud API, Ollama, OpenAI-compatible, or mock)."""
 
-    def __init__(self, backend: str = "mock", endpoint: Optional[str] = None):
+    def __init__(
+        self,
+        backend: str = "mock",
+        endpoint: Optional[str] = None,
+        model: str = "moondream3.1",
+        api_key: Optional[str] = None
+    ):
         self.backend = backend
         self.endpoint = endpoint
+        self.model = model
+        self.api_key = api_key or os.getenv("MOONDREAM_API_KEY", "")
         self._init_backend()
 
     def _init_backend(self):
         if self.backend == "ollama":
-            import urllib.request
             self.api_url = self.endpoint or "http://localhost:11434/api/generate"
+        elif self.backend == "moondream3_api":
+            self.api_url = self.endpoint or "https://api.moondream.ai/v1/query"
         elif self.backend == "openai_compat":
             import openai
-            self.client = openai.OpenAI(base_url=self.endpoint or "http://localhost:8000/v1", api_key=os.getenv("OPENAI_API_KEY", "EMPTY"))
+            self.client = openai.OpenAI(
+                base_url=self.endpoint or "http://localhost:8000/v1",
+                api_key=os.getenv("OPENAI_API_KEY", "EMPTY")
+            )
         elif self.backend == "mock":
             pass
         else:
-            raise ValueError(f"Unsupported backend: {self.backend}. Choose 'mock', 'ollama', or 'openai_compat'")
+            raise ValueError(f"Unsupported backend: {self.backend}. Choose 'mock', 'moondream3_api', 'ollama', or 'openai_compat'")
 
     def predict(self, image_path: Path) -> ModelPrediction:
         start_time = time.perf_counter()
@@ -713,13 +723,12 @@ class MoondreamClient:
             b64_img = base64.b64encode(img_bytes).decode("utf-8")
 
         if self.backend == "mock":
-            # Deterministic mock simulating an imperfect vision model for testing benchmark mechanics
             stem = image_path.stem
             is_defect = not stem.startswith("clean_")
             defect_type = "text_clipped" if "clip" in stem else ("text_icon_overlap" if "overlap" in stem else ("bidi_inversion" if "bidi" in stem else None))
-            # Inject a realistic 5% mock imperfection
+            # Inject a realistic 4% mock imperfection on tight padding
             if stem == "clean_de_tight_btn":
-                is_defect = True  # Simulated false positive on tight margin
+                is_defect = True
                 defect_type = "text_clipped"
             latency = (time.perf_counter() - start_time) * 1000 + 42.0
             return ModelPrediction(
@@ -730,6 +739,45 @@ class MoondreamClient:
                 latency_ms=round(latency, 2),
                 raw_response=json.dumps({"defect": is_defect, "defect_type": defect_type, "confidence": 0.90})
             )
+
+        elif self.backend == "moondream3_api":
+            import urllib.request
+            payload = {
+                "image_url": f"data:image/png;base64,{b64_img}",
+                "question": PROMPT_TEMPLATE,
+                "stream": False
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "X-Moondream-Auth": self.api_key
+            }
+            req = urllib.request.Request(self.api_url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    answer = data.get("answer", "{}")
+                    # Clean potential markdown fences from JSON output
+                    clean_json = answer.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+                    parsed = json.loads(clean_json)
+                    latency = (time.perf_counter() - start_time) * 1000
+                    return ModelPrediction(
+                        defect=bool(parsed.get("defect", False)),
+                        defect_type=parsed.get("defect_type"),
+                        confidence=float(parsed.get("confidence", 0.5)),
+                        reason=str(parsed.get("reason", "")),
+                        latency_ms=round(latency, 2),
+                        raw_response=answer
+                    )
+            except Exception as e:
+                latency = (time.perf_counter() - start_time) * 1000
+                return ModelPrediction(
+                    defect=False,
+                    defect_type=None,
+                    confidence=0.0,
+                    reason=f"Moondream API call error: {e}",
+                    latency_ms=round(latency, 2),
+                    raw_response=str(e)
+                )
 
         elif self.backend == "ollama":
             import urllib.request
@@ -788,14 +836,16 @@ class MoondreamClient:
 def run_benchmark(
     backend: str = "mock",
     endpoint: Optional[str] = None,
+    model: str = "moondream3.1",
+    api_key: Optional[str] = None,
     output_dir: Path = Path("reports/moondream_benchmark")
 ) -> Dict[str, Any]:
     """Executes the full 50-case benchmark, evaluates accuracy, and outputs metrics."""
     output_dir.mkdir(parents=True, exist_ok=True)
     images = render_and_capture_cases(BENCHMARK_CASES, output_dir)
 
-    client = MoondreamClient(backend=backend, endpoint=endpoint)
-    print(f"[*] Running Moondream benchmark using backend: {backend}...")
+    client = MoondreamClient(backend=backend, endpoint=endpoint, model=model, api_key=api_key)
+    print(f"[*] Running Moondream benchmark using backend: {backend} (model: {model})...")
 
     results: List[Dict[str, Any]] = []
     tp = fp = tn = fn = 0
@@ -849,6 +899,7 @@ def run_benchmark(
         "false_positive_rate": round(fpr, 4),
         "mean_latency_ms": round(mean_latency, 2),
         "backend": backend,
+        "model": model,
         "results": results
     }
 
@@ -857,7 +908,7 @@ def run_benchmark(
         json.dump(summary, f, indent=2, ensure_ascii=False)
 
     print("\n" + "=" * 60)
-    print(" MOONDREAM 2 BENCHMARK RESULTS")
+    print(f" MOONDREAM BENCHMARK RESULTS ({model.upper()})")
     print("=" * 60)
     print(f"Total Test Cases:        {total} (25 defects, 25 clean controls)")
     print(f"Precision:               {precision * 100:.2f}%")
@@ -872,14 +923,22 @@ def run_benchmark(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark Moondream 2 for Multilingual UI Defect Inspection")
-    parser.add_argument("--backend", choices=["mock", "ollama", "openai_compat"], default="mock",
-                        help="Inference backend: 'mock' for local offline test, 'ollama' or 'openai_compat' for live model")
-    parser.add_argument("--endpoint", default=None, help="Endpoint URL for ollama or OpenAI-compatible server")
+    parser = argparse.ArgumentParser(description="Benchmark Moondream 3.1 & 2 for Multilingual UI Defect Inspection")
+    parser.add_argument("--backend", choices=["mock", "moondream3_api", "ollama", "openai_compat"], default="mock",
+                        help="Inference backend: 'mock', 'moondream3_api' (official Cloud API), 'ollama', or 'openai_compat'")
+    parser.add_argument("--model", default="moondream3.1", help="Model identifier (e.g. moondream3.1, moondream3-preview, moondream2)")
+    parser.add_argument("--api-key", default=None, help="Moondream API key (or set MOONDREAM_API_KEY env var)")
+    parser.add_argument("--endpoint", default=None, help="Endpoint URL for ollama, API, or OpenAI-compatible server")
     parser.add_argument("--output-dir", default="reports/moondream_benchmark", help="Directory for images and report")
     args = parser.parse_args()
 
-    run_benchmark(backend=args.backend, endpoint=args.endpoint, output_dir=Path(args.output_dir))
+    run_benchmark(
+        backend=args.backend,
+        endpoint=args.endpoint,
+        model=args.model,
+        api_key=args.api_key,
+        output_dir=Path(args.output_dir)
+    )
 
 
 if __name__ == "__main__":
