@@ -8,3 +8,5 @@ __pycache__/
 polyglot.db
 locales/*
 !locales/en.json
+reports/
+
