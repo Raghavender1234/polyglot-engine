@@ -144,6 +144,74 @@ def format_repair_scorecard(target_url: str, all_repair_runs: List[Dict[str, Any
     return "\n".join(lines)
 
 
+def format_markdown_summary(target_url: str, all_runs: List[Dict[str, Any]], is_repair: bool = False) -> str:
+    """Generates a GitHub Flavored Markdown summary table for PR comments and CI Step Summaries."""
+    lines = []
+    lines.append(f"## 🌐 Polyglot Multilingual Audit Summary: `{target_url}`")
+    lines.append("")
+    if is_repair:
+        lines.append("| Locale | Viewport | Initial Defects | Resolved | Remaining | Verified | Status |")
+        lines.append("|:-------|:---------|:---------------:|:--------:|:---------:|:--------:|:------:|")
+        for r in all_runs:
+            loc = r.get("locale", "unknown")
+            vp = r.get("viewport", "desktop")
+            init_c = r.get("initial_overflows", 0) + r.get("initial_collisions", 0) + r.get("initial_bidi_defects", 0)
+            res_c = r.get("resolved_overflows", 0) + r.get("resolved_collisions", 0) + r.get("resolved_bidi_defects", 0)
+            rem_c = r.get("final_overflows", 0) + r.get("final_collisions", 0) + r.get("final_bidi_defects", 0)
+            ver = "✅ Yes" if r.get("verified", True) else "❌ No"
+            st = "✅ Repaired" if rem_c == 0 else "⚠️ Partial"
+            lines.append(f"| `{loc}` | {vp} | {init_c} | {res_c} | {rem_c} | {ver} | {st} |")
+    else:
+        lines.append("| Locale | Viewport | Overflows | Collisions | BiDi Inversions | Status |")
+        lines.append("|:-------|:---------|:---------:|:----------:|:---------------:|:------:|")
+        for r in all_runs:
+            loc = r.get("locale", "unknown")
+            vp = r.get("viewport", "desktop")
+            ov = r.get("initial_overflows", 0)
+            col = r.get("initial_collisions", 0)
+            bidi = r.get("initial_bidi_defects", 0)
+            tot = ov + col + bidi
+            st = "❌ Failed" if tot > 0 else "✅ Passed"
+            lines.append(f"| `{loc}` | {vp} | {ov} | {col} | {bidi} | {st} |")
+
+    lines.append("")
+    all_issues = []
+    for r in all_runs:
+        for iss in r.get("diagnosed_issues", []):
+            all_issues.append((r.get("locale"), iss))
+
+    if all_issues:
+        lines.append(f"<details><summary><b>🔍 Detected Layout Defects & Suggested Remedies ({len(all_issues)})</b></summary>")
+        lines.append("")
+        for loc, iss in all_issues[:15]:
+            cat = iss.get("category", "DEFECT")
+            sel = iss.get("selector", "element")
+            rem = iss.get("remedy", "")
+            lines.append(f"- **`{loc}` [{cat}]** on `{sel}`")
+            if rem:
+                lines.append(f"  - *Remedy:* {rem}")
+        if len(all_issues) > 15:
+            lines.append(f"- *...and {len(all_issues) - 15} more defects (view full HTML report).*")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def write_ci_summary(content: str, summary_file: Optional[str] = None):
+    """Writes the markdown summary to the specified file or $GITHUB_STEP_SUMMARY if available."""
+    target_path = summary_file or os.getenv("GITHUB_STEP_SUMMARY")
+    if target_path:
+        try:
+            with open(target_path, "a" if not summary_file else "w", encoding="utf-8") as f:
+                f.write("\n" + content + "\n")
+            print(f"📝 GitHub Step Summary recorded to: {target_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to write Step Summary to {target_path}: {e}")
+
+
+
 def evaluate_exit_code(all_runs: List[Dict[str, Any]], fail_on: str = "any", is_repair: bool = False) -> int:
     """Calculates CI exit code based on the --fail-on policy.
     Returns 0 if thresholds pass, 1 if failures exceed policy.
@@ -365,6 +433,10 @@ def cmd_scan(args):
 
     # Print Terminal Scorecard
     print(format_scan_scorecard(url, all_runs))
+
+    # Write CI Markdown Summary (e.g. to $GITHUB_STEP_SUMMARY)
+    md_summary = format_markdown_summary(url, all_runs, is_repair=False)
+    write_ci_summary(md_summary, summary_file=getattr(args, "markdown_summary", None))
 
     # Evaluate CI exit code
     exit_code = evaluate_exit_code(all_runs, fail_on=getattr(args, "fail_on", "any"), is_repair=False)
@@ -600,6 +672,10 @@ def cmd_repair(args):
     # Print Terminal Scorecard
     print(format_repair_scorecard(url, all_repair_runs))
 
+    # Write CI Markdown Summary (e.g. to $GITHUB_STEP_SUMMARY)
+    md_summary = format_markdown_summary(url, all_repair_runs, is_repair=True)
+    write_ci_summary(md_summary, summary_file=getattr(args, "markdown_summary", None))
+
     # Evaluate CI exit code
     exit_code = evaluate_exit_code(all_repair_runs, fail_on=getattr(args, "fail_on", "any"), is_repair=True)
     if exit_code != 0:
@@ -647,6 +723,7 @@ def _configure_repair_args(subparser):
     subparser.add_argument("--repo-path", default=None, help="Path to local source repository for Git diff patching")
     subparser.add_argument("--output", default="polyglot_repair_report.html", help="Path to write HTML report")
     subparser.add_argument("--json", default=None, help="Path to write JSON report")
+    subparser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     subparser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
     subparser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
     subparser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' remaining defect, 'critical' only, or 'none'")
@@ -668,6 +745,7 @@ def main():
     scan_parser.add_argument("--viewports", default="desktop", help="Comma-separated viewports: desktop, mobile, tablet")
     scan_parser.add_argument("--output", default="polyglot_audit_report.html", help="Path to write HTML report")
     scan_parser.add_argument("--json", default=None, help="Path to write JSON report")
+    scan_parser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     scan_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
     scan_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to inspect (default: 0 = unlimited whole-page scan)")
     scan_parser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' defect found, 'critical' only, or 'none'")
@@ -696,9 +774,6 @@ def main():
     parsed = parser.parse_args()
     parsed.func(parsed)
 
-
-    parsed = parser.parse_args()
-    parsed.func(parsed)
 
 
 if __name__ == "__main__":

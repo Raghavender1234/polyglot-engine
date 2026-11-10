@@ -39,3 +39,14 @@ jobs:
       - name: Run Polyglot CI Layout Verification
         run: |
           python scripts/ci_check.py --input locales/en.json --targets de-DE,ur-PK,ar-SA,ja-JP
+
+      - name: Upload Polyglot Report Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: polyglot-ci-reports
+          path: |
+            polyglot*.html
+            polyglot*.json
+            reports/
+

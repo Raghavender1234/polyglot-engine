@@ -1,0 +1,66 @@
+name: 'Polyglot Localization & Layout Audit'
+description: 'Developer-first CLI that scans, diagnoses and repairs multilingual UI problems directly inside your codebase'
+author: 'Polyglot Engine'
+branding:
+  icon: 'globe'
+  color: 'blue'
+
+inputs:
+  url:
+    description: 'Target URL to inspect (e.g. http://localhost:3000 or staging URL)'
+    required: true
+  locales:
+    description: 'Comma-separated target locales to audit (e.g. de-DE,ar-SA,ja-JP)'
+    required: false
+    default: 'de-DE,ar-SA'
+  viewports:
+    description: 'Comma-separated viewports: desktop, mobile, tablet'
+    required: false
+    default: 'desktop,mobile'
+  fail-on:
+    description: 'CI exit code failure policy: any, critical, none'
+    required: false
+    default: 'any'
+  output-report:
+    description: 'Path for the standalone visual HTML report'
+    required: false
+    default: 'polyglot_audit_report.html'
+  output-json:
+    description: 'Path for the structured JSON audit output'
+    required: false
+    default: 'polyglot_audit_report.json'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Polyglot Engine & Playwright
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+        playwright install --with-deps chromium
+
+    - name: Run Polyglot Multilingual Audit
+      shell: bash
+      run: |
+        polyglot scan "${{ inputs.url }}" \
+          --locales "${{ inputs.locales }}" \
+          --viewports "${{ inputs.viewports }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          --output "${{ inputs.output-report }}" \
+          --json "${{ inputs.output-json }}"
+
+    - name: Upload Visual HTML Report Artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: polyglot-visual-audit-report
+        path: |
+          ${{ inputs.output-report }}
+          ${{ inputs.output-json }}
+          *.png

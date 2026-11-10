@@ -17,9 +17,12 @@ from polyglot.cli import (
     main,
     format_scan_scorecard,
     format_repair_scorecard,
+    format_markdown_summary,
+    write_ci_summary,
     evaluate_exit_code,
     cmd_report,
 )
+
 
 
 def test_cli_subparsers_registration():
@@ -161,3 +164,38 @@ def test_cmd_report_missing_file_exits():
     with pytest.raises(SystemExit) as exc:
         cmd_report(args)
     assert exc.value.code == 1
+
+
+def test_format_markdown_summary_scan():
+    runs = [{
+        "locale": "de-DE",
+        "viewport": "desktop (1280x800)",
+        "initial_overflows": 1,
+        "initial_collisions": 0,
+        "initial_bidi_defects": 0,
+        "diagnosed_issues": [{
+            "category": "FLEX_CONTAINER_NO_WRAP",
+            "selector": "button.submit",
+            "remedy": "Add flex-wrap: wrap;"
+        }]
+    }]
+    md = format_markdown_summary("http://localhost:3000", runs, is_repair=False)
+    assert "Polyglot Multilingual Audit Summary" in md
+    assert "| `de-DE` | desktop (1280x800) | 1 | 0 | 0 | ❌ Failed |" in md
+    assert "FLEX_CONTAINER_NO_WRAP" in md
+    assert "Add flex-wrap: wrap;" in md
+
+
+def test_write_ci_summary_to_file():
+    with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as f:
+        temp_path = f.name
+
+    try:
+        write_ci_summary("## Test Summary Content", summary_file=temp_path)
+        with open(temp_path, "r", encoding="utf-8") as rf:
+            content = rf.read()
+        assert "## Test Summary Content" in content
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
