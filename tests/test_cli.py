@@ -26,6 +26,8 @@ from polyglot.cli import (
     cmd_report,
 )
 from polyglot.reporting import HTMLReportGenerator
+from polyglot.visual import VisualAIInspector
+
 
 
 
@@ -288,5 +290,45 @@ def test_html_report_interactive_copy_and_filters():
         assert "Copy Git Diff Patch" in html_out
         assert "filterIssues('FLEX', this)" in html_out
         assert "CSS_RIGID_WIDTH_CONSTRAINT" in html_out
+
+
+def test_visual_ai_inspector_dual_sampling_and_detection():
+    # Standard mode (off)
+    std_inspector = VisualAIInspector(mode="off")
+    assert not std_inspector.is_enabled
+
+    # Enhanced mode (mock / moondream)
+    enh_inspector = VisualAIInspector(mode="mock", clean_sample_size=2)
+    assert enh_inspector.is_enabled
+
+    elements = [
+        {"id": "1", "tag": "button", "selector": "#btn1", "text": "Flagged Button", "direction": "ltr"},
+        {"id": "2", "tag": "button", "selector": "#btn2", "text": "OVERLAP_ICON Clean Geometry", "direction": "ltr"},
+        {"id": "3", "tag": "span", "selector": "#sp3", "text": "Clean Span", "direction": "rtl"},
+        {"id": "4", "tag": "p", "selector": "#p4", "text": "Other Paragraph", "direction": "ltr"},
+    ]
+    flagged_ids = {"1"}
+
+    # Dual-sampling must select id="1" (flagged) + up to 2 clean elements (prioritizing button #2 and rtl #3)
+    candidates = enh_inspector.select_candidates(elements, flagged_ids)
+    cand_ids = [c["id"] for c in candidates]
+    assert "1" in cand_ids
+    assert "2" in cand_ids
+    assert "3" in cand_ids
+    assert len(candidates) == 3
+
+    # Mock page locator for inspect_page
+    mock_page = MagicMock()
+    mock_loc = MagicMock()
+    mock_loc.count.return_value = 1
+    mock_loc.first.screenshot.return_value = b"\x89PNG\r\n\x1a\n"
+    mock_page.locator.return_value = mock_loc
+
+    visual_issues = enh_inspector.inspect_page(mock_page, elements, flagged_ids)
+    assert len(visual_issues) == 1
+    assert visual_issues[0]["id"] == "2"
+    assert visual_issues[0]["category"] == "VISUAL_AI_TEXT_ICON_OVERLAP"
+    assert visual_issues[0]["caught_by_visual_ai_only"] is True
+
 
 

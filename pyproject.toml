@@ -24,8 +24,15 @@ dependencies = [
     "playwright>=1.40.0",
 ]
 
+[project.optional-dependencies]
+visual = [
+    "moondream>=0.0.5",
+    "Pillow>=10.0.0",
+]
+
 [project.scripts]
 polyglot = "polyglot.cli:main"
+
 
 [tool.setuptools.packages.find]
 include = ["polyglot*", "app*"]

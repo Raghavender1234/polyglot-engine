@@ -31,6 +31,8 @@ from .diagnosis import RootCauseDiagnoser
 from .patcher import DynamicCSSPatcher, GitDiffPatcher
 from .repair import RepairOrchestrator, JS_APPLY_BATCH_TEXT
 from .reporting import HTMLReportGenerator
+from .visual import VisualAIInspector
+
 
 # Import translation engine from app
 try:
@@ -437,6 +439,19 @@ def cmd_scan(args):
                             "overflow_px": 0.0
                         }
                         diagnosed_issues.append(diag)
+
+                    # 5b. Layer 2 Visual AI Inspection (Enhanced Mode: dual-samples flagged + geometry-clean elements)
+                    visual_mode = getattr(args, "visual_ai", "off") or proj_cfg.get("visual_ai", "off")
+                    visual_inspector = VisualAIInspector(mode=visual_mode)
+                    if visual_inspector.is_enabled:
+                        print(f"👁️  Running Enhanced Visual AI Inspection (mode={visual_mode}, dual-sampling flagged + clean elements)...")
+                        flagged_ids = {str(iss.get("id")) for iss in diagnosed_issues if iss.get("id") is not None}
+                        visual_issues = visual_inspector.inspect_page(page, target_elements, flagged_ids)
+                        for viss in visual_issues:
+                            diagnosed_issues.append(viss)
+                            if viss.get("caught_by_visual_ai_only"):
+                                collision_count += 1
+
 
                     # 6. Capture Evidence Screenshot
                     screenshot_name = f"polyglot_scan_{locale}_{vp_name}.png"
@@ -900,6 +915,7 @@ def _configure_repair_args(subparser):
     subparser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     subparser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
     subparser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
+    subparser.add_argument("--visual-ai", default="off", choices=["off", "moondream", "moondream3_api", "ollama", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only) or 'moondream'/'ollama' (Enhanced dual-sampling)")
     subparser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' remaining defect, 'critical' only, or 'none'")
     subparser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     subparser.set_defaults(func=cmd_repair)
@@ -930,7 +946,9 @@ def main():
     scan_parser.add_argument("--markdown-summary", default=None, help="Path to write GitHub Flavored Markdown summary (auto-detects $GITHUB_STEP_SUMMARY)")
     scan_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
     scan_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to inspect (default: 0 = unlimited whole-page scan)")
+    scan_parser.add_argument("--visual-ai", default="off", choices=["off", "moondream", "moondream3_api", "ollama", "mock"], help="Layer 2 Visual AI mode: 'off' (Standard geometry only) or 'moondream'/'ollama' (Enhanced dual-sampling)")
     scan_parser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' defect found, 'critical' only, or 'none'")
+
     scan_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     scan_parser.set_defaults(func=cmd_scan)
 
