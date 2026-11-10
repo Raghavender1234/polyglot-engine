@@ -1,16 +1,19 @@
 """
 Polyglot CLI — Automated Localization Layout Scanner & Verified Repair Engine
 Commands:
-  polyglot scan <url> [--locales ...] [--viewports ...] [--output ...] [--json ...]
+  polyglot scan <url> [--locales ...] [--viewports ...] [--output ...] [--fail-on ...]
+  polyglot report [report.html] [--no-open]
+  polyglot fix <url> [--strategy auto|css-only|text-only] [--repo-path ...]
+  polyglot repair <url> (alias for fix)
   polyglot diagnose <report.json>
-  polyglot repair <url> [--locales ...] [--viewports ...] [--strategy auto|css-only|text-only] [--verify] [--repo-path ...]
 """
 
 import os
 import sys
 import json
 import argparse
-from typing import Dict, Any, List
+import webbrowser
+from typing import Dict, Any, List, Optional
 
 if sys.platform == "win32":
     try:
@@ -40,6 +43,137 @@ VIEWPORT_PRESETS = {
     "mobile": {"width": 390, "height": 844},
     "tablet": {"width": 768, "height": 1024}
 }
+
+
+def format_scan_scorecard(target_url: str, all_runs: List[Dict[str, Any]]) -> str:
+    """Renders a structured, aligned ASCII scorecard summarizing audit results."""
+    lines = []
+    lines.append("")
+    lines.append("=" * 86)
+    lines.append(f"  POLYGLOT MULTILINGUAL AUDIT SCORECARD: {target_url}")
+    lines.append("=" * 86)
+    lines.append(f" {'Locale':<10} | {'Viewport':<18} | {'Overflows':<10} | {'Collisions':<11} | {'BiDi Errors':<12} | {'Status':<10}")
+    lines.append("-" * 86)
+
+    total_overflows = 0
+    total_collisions = 0
+    total_bidi = 0
+
+    for run in all_runs:
+        locale = run.get("locale", "unknown")
+        vp = run.get("viewport", "desktop")
+        ov = run.get("initial_overflows", 0)
+        col = run.get("initial_collisions", 0)
+        bidi = run.get("initial_bidi_defects", 0)
+        total_overflows += ov
+        total_collisions += col
+        total_bidi += bidi
+
+        run_issues = ov + col + bidi
+        status_str = "FAILED ❌" if run_issues > 0 else "PASSED ✅"
+        lines.append(f" {locale:<10} | {vp:<18} | {ov:<10} | {col:<11} | {bidi:<12} | {status_str:<10}")
+
+    lines.append("-" * 86)
+    overall_defects = total_overflows + total_collisions + total_bidi
+    overall_status = "FAILED ❌" if overall_defects > 0 else "PASSED ✅"
+    lines.append(f" {'TOTAL':<10} | {f'{len(all_runs)} run(s)':<18} | {total_overflows:<10} | {total_collisions:<11} | {total_bidi:<12} | {overall_status:<10}")
+    lines.append("=" * 86)
+
+    if overall_defects > 0:
+        lines.append(f"⚠️  Found {overall_defects} layout defect(s) across {len(all_runs)} test run(s).")
+        lines.append(f"👉 Run 'polyglot report' to open interactive visual report.")
+        lines.append(f"👉 Run 'polyglot fix {target_url}' to generate verified source-code repairs.")
+    else:
+        lines.append("🎉 All evaluated components passed layout and BiDi verification with zero defects!")
+        lines.append(f"👉 Run 'polyglot report' to inspect the clean verification audit.")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def format_repair_scorecard(target_url: str, all_repair_runs: List[Dict[str, Any]]) -> str:
+    """Renders a structured ASCII scorecard for closed-loop repair verification."""
+    lines = []
+    lines.append("")
+    lines.append("=" * 90)
+    lines.append(f"  POLYGLOT CLOSED-LOOP REPAIR SCORECARD: {target_url}")
+    lines.append("=" * 90)
+    lines.append(f" {'Locale':<10} | {'Viewport':<18} | {'Initial':<8} | {'Resolved':<9} | {'Remaining':<10} | {'Verified':<9} | {'Status':<10}")
+    lines.append("-" * 90)
+
+    total_init = 0
+    total_res = 0
+    total_rem = 0
+
+    for run in all_repair_runs:
+        locale = run.get("locale", "unknown")
+        vp = run.get("viewport", "desktop")
+        ov_i = run.get("initial_overflows", 0)
+        col_i = run.get("initial_collisions", 0)
+        bidi_i = run.get("initial_bidi_defects", 0)
+        init_cnt = ov_i + col_i + bidi_i
+
+        ov_r = run.get("resolved_overflows", 0)
+        col_r = run.get("resolved_collisions", 0)
+        bidi_r = run.get("resolved_bidi_defects", 0)
+        res_cnt = ov_r + col_r + bidi_r
+
+        ov_f = run.get("final_overflows", 0)
+        col_f = run.get("final_collisions", 0)
+        bidi_f = run.get("final_bidi_defects", 0)
+        rem_cnt = ov_f + col_f + bidi_f
+
+        total_init += init_cnt
+        total_res += res_cnt
+        total_rem += rem_cnt
+
+        verified = "YES" if run.get("verified", True) else "NO"
+        status_str = "REPAIRED ✅" if rem_cnt == 0 else "PARTIAL ⚠️"
+        lines.append(f" {locale:<10} | {vp:<18} | {init_cnt:<8} | {res_cnt:<9} | {rem_cnt:<10} | {verified:<9} | {status_str:<10}")
+
+    lines.append("-" * 90)
+    overall_status = "REPAIRED ✅" if total_rem == 0 else "PARTIAL ⚠️"
+    lines.append(f" {'TOTAL':<10} | {f'{len(all_repair_runs)} run(s)':<18} | {total_init:<8} | {total_res:<9} | {total_rem:<10} | {'--':<9} | {overall_status:<10}")
+    lines.append("=" * 90)
+
+    if total_rem == 0:
+        lines.append("🎉 All multilingual layout defects successfully repaired and verified in browser!")
+        lines.append("👉 Run 'polyglot report' to inspect the verified before/after diffs.")
+    else:
+        lines.append(f"⚠️  {total_rem} defect(s) remain unverified. Check 'polyglot report' for details.")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def evaluate_exit_code(all_runs: List[Dict[str, Any]], fail_on: str = "any", is_repair: bool = False) -> int:
+    """Calculates CI exit code based on the --fail-on policy.
+    Returns 0 if thresholds pass, 1 if failures exceed policy.
+    """
+    if fail_on == "none":
+        return 0
+
+    if is_repair:
+        # For repair runs, evaluate remaining/final defects
+        rem_defects = sum(
+            r.get("final_overflows", 0) + r.get("final_collisions", 0) + r.get("final_bidi_defects", 0)
+            for r in all_runs
+        )
+        if not all(r.get("verified", True) for r in all_runs):
+            return 1
+        return 1 if rem_defects > 0 else 0
+    else:
+        # For scan runs, evaluate initial defects found
+        total_defects = sum(
+            r.get("initial_overflows", 0) + r.get("initial_collisions", 0) + r.get("initial_bidi_defects", 0)
+            for r in all_runs
+        )
+        if fail_on == "critical":
+            crit_defects = sum(
+                r.get("initial_overflows", 0) + r.get("initial_bidi_defects", 0)
+                for r in all_runs
+            )
+            return 1 if crit_defects > 0 else 0
+        return 1 if total_defects > 0 else 0
+
 
 
 def cmd_scan(args):
@@ -228,6 +362,15 @@ def cmd_scan(args):
             with open(args.json, "w", encoding="utf-8") as jf:
                 json.dump(master_report, jf, indent=2, ensure_ascii=False)
             print(f"📋 Multi-Run Matrix JSON report saved to: {args.json}")
+
+    # Print Terminal Scorecard
+    print(format_scan_scorecard(url, all_runs))
+
+    # Evaluate CI exit code
+    exit_code = evaluate_exit_code(all_runs, fail_on=getattr(args, "fail_on", "any"), is_repair=False)
+    if exit_code != 0:
+        print(f"🛑 Polyglot audit exited with code {exit_code} (defects detected with --fail-on={getattr(args, 'fail_on', 'any')}).")
+        sys.exit(exit_code)
 
 
 def cmd_diagnose(args):
@@ -454,11 +597,67 @@ def cmd_repair(args):
                 json.dump(master_report, jf, indent=2, ensure_ascii=False)
             print(f"📋 Multi-Run Matrix JSON report saved to: {args.json}")
 
+    # Print Terminal Scorecard
+    print(format_repair_scorecard(url, all_repair_runs))
+
+    # Evaluate CI exit code
+    exit_code = evaluate_exit_code(all_repair_runs, fail_on=getattr(args, "fail_on", "any"), is_repair=True)
+    if exit_code != 0:
+        print(f"🛑 Polyglot repair exited with code {exit_code} (unresolved defects detected with --fail-on={getattr(args, 'fail_on', 'any')}).")
+        sys.exit(exit_code)
+
+
+def cmd_report(args):
+    """Opens the generated HTML visual report in the default web browser."""
+    report_file = args.report_file
+    if not report_file:
+        for cand in ["polyglot_audit_report.html", "polyglot_repair_report.html"]:
+            if os.path.exists(cand):
+                report_file = cand
+                break
+
+    if not report_file or not os.path.exists(report_file):
+        print(f"❌ Error: Report file '{report_file or 'polyglot_audit_report.html'}' not found.")
+        print("💡 Run 'polyglot scan <url>' or 'polyglot fix <url>' first to generate an audit report.")
+        sys.exit(1)
+
+    abs_path = os.path.abspath(report_file)
+    print("=" * 70)
+    print("🌐 Polyglot Visual HTML Report")
+    print("=" * 70)
+    print(f"📁 Path: {abs_path}")
+    print(f"🔗 URL:  file:///{abs_path.replace(os.sep, '/')}")
+    if not getattr(args, "no_open", False):
+        try:
+            webbrowser.open(f"file:///{abs_path.replace(os.sep, '/')}")
+            print("🚀 Report opened in default browser.")
+        except Exception as e:
+            print(f"⚠️ Could not launch browser automatically: {e}")
+    print("=" * 70)
+
+
+def _configure_repair_args(subparser):
+    """Common arguments shared between 'repair' and 'fix' commands."""
+    subparser.add_argument("url", help="Target URL to repair")
+    subparser.add_argument("--locales", default="de-DE", help="Comma-separated target locales (e.g. de-DE,ar-SA)")
+    subparser.add_argument("--viewports", default="desktop", help="Comma-separated viewports: desktop, mobile, tablet")
+    subparser.add_argument("--strategy", default="auto", choices=["auto", "css-only", "text-only"], help="Repair strategy")
+    subparser.add_argument("--verify", action="store_true", default=True, help="Verify repairs in isolated browser")
+    subparser.add_argument("--no-verify", action="store_false", dest="verify", help="Disable post-repair verification check")
+    subparser.add_argument("--repo-path", default=None, help="Path to local source repository for Git diff patching")
+    subparser.add_argument("--output", default="polyglot_repair_report.html", help="Path to write HTML report")
+    subparser.add_argument("--json", default=None, help="Path to write JSON report")
+    subparser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
+    subparser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
+    subparser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' remaining defect, 'critical' only, or 'none'")
+    subparser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
+    subparser.set_defaults(func=cmd_repair)
+
 
 def main():
     parser = argparse.ArgumentParser(
         prog="polyglot",
-        description="Polyglot Engine — Automated Layout Scanner, Diagnoser & Closed-Loop Repair CLI"
+        description="Polyglot Engine — Developer-first CLI that scans, diagnoses and repairs multilingual UI problems directly inside your codebase"
     )
     subparsers = parser.add_subparsers(dest="command", required=True, help="Available subcommands")
 
@@ -471,29 +670,32 @@ def main():
     scan_parser.add_argument("--json", default=None, help="Path to write JSON report")
     scan_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
     scan_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to inspect (default: 0 = unlimited whole-page scan)")
+    scan_parser.add_argument("--fail-on", choices=["any", "critical", "none"], default="any", help="CI exit code policy: fail on 'any' defect found, 'critical' only, or 'none'")
     scan_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
     scan_parser.set_defaults(func=cmd_scan)
+
+    # Command: report
+    report_parser = subparsers.add_parser("report", help="Open visual HTML report in the default browser")
+    report_parser.add_argument("report_file", nargs="?", default=None, help="Path to HTML report (defaults to polyglot_audit_report.html or polyglot_repair_report.html)")
+    report_parser.add_argument("--no-open", action="store_true", help="Do not automatically launch browser, just print path and URL")
+    report_parser.set_defaults(func=cmd_report)
+
+    # Command: fix (preferred verb)
+    fix_parser = subparsers.add_parser("fix", help="Execute closed-loop multi-candidate repair and generate Git diff")
+    _configure_repair_args(fix_parser)
+
+    # Command: repair (alias for fix)
+    rep_parser = subparsers.add_parser("repair", help="Execute closed-loop multi-candidate repair on a webpage")
+    _configure_repair_args(rep_parser)
 
     # Command: diagnose
     diag_parser = subparsers.add_parser("diagnose", help="Diagnose root causes from an existing JSON audit report")
     diag_parser.add_argument("report_file", help="Path to JSON audit report file")
     diag_parser.set_defaults(func=cmd_diagnose)
 
-    # Command: repair
-    rep_parser = subparsers.add_parser("repair", help="Execute closed-loop multi-candidate repair on a webpage")
-    rep_parser.add_argument("url", help="Target URL to repair")
-    rep_parser.add_argument("--locales", default="de-DE", help="Comma-separated target locales (e.g. de-DE,ar-SA)")
-    rep_parser.add_argument("--viewports", default="desktop", help="Comma-separated viewports: desktop, mobile, tablet")
-    rep_parser.add_argument("--strategy", default="auto", choices=["auto", "css-only", "text-only"], help="Repair strategy")
-    rep_parser.add_argument("--verify", action="store_true", default=True, help="Verify repairs in isolated browser")
-    rep_parser.add_argument("--no-verify", action="store_false", dest="verify", help="Disable post-repair verification check")
-    rep_parser.add_argument("--repo-path", default=None, help="Path to local source repository for Git diff patching")
-    rep_parser.add_argument("--output", default="polyglot_repair_report.html", help="Path to write HTML report")
-    rep_parser.add_argument("--json", default=None, help="Path to write JSON report")
-    rep_parser.add_argument("--bypass-presets", action="store_true", help="Bypass preset translations and query OpenAI API directly")
-    rep_parser.add_argument("--max-elements", type=int, default=0, help="Maximum interactive elements to repair (default: 0 = unlimited whole-page repair)")
-    rep_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
-    rep_parser.set_defaults(func=cmd_repair)
+    parsed = parser.parse_args()
+    parsed.func(parsed)
+
 
     parsed = parser.parse_args()
     parsed.func(parsed)
