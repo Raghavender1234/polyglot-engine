@@ -1,6 +1,8 @@
-# Polyglot Engine — Autonomous Multilingual Layout Scanner & Verified Source Repair Engine
+# Polyglot Engine — Autonomous Multilingual Layout Scanner & Verified Source Repair CLI
 
-> **Polyglot aims to make multilingual UI testing actionable by connecting browser-level layout defects to their linguistic or CSS causes, then generating and verifying targeted source-code repairs.**
+> **Polyglot Engine is a developer-first CLI that scans, diagnoses and repairs multilingual UI problems directly inside your codebase.**
+>
+> *Polyglot aims to make multilingual UI testing actionable by connecting browser-level layout defects to their linguistic or CSS causes, then generating and verifying targeted source-code repairs.*
 
 ---
 
@@ -34,57 +36,70 @@ Polyglot Engine connects browser inspection, localization context, root-cause di
 
 ## ⚡ The Core Problem & Differentiated Proposition
 
-Existing localization tools (Phrase, Lokalise) manage strings in databases, while visual QA tools (Applitools, Percy) capture screenshot diffs and highlight changes.
+Existing localization tools (Phrase, Lokalise) manage strings in databases, while visual QA platforms (Applitools, Percy) capture screenshot baselines in cloud dashboards.
 
-Polyglot focuses on a specific, actionable engineering workflow:
+Polyglot focuses on a terminal-first, visual-rich engineering workflow directly inside the codebase:
 1. **Identify whether the translation or the CSS constraint caused the problem.**
 2. **Determine if an approved compact translation solves it without changing code.**
 3. **If not, calculate the exact minimal CSS declaration on the responsible stylesheet.**
 4. **Apply the patch to source code and verify that a clean browser reload clears defects.**
 5. **Run cross-locale regression verification across other languages and responsive breakpoints to guarantee no new breakages were introduced.**
 
-```
-[Target Web Application] ──► polyglot scan / repair
-       │
-       ▼
-[DOM Discovery & Range Inspection]
-  • Whole-DOM traversal across standard elements and custom Web Components
-  • Live visual bounding-box collision detection
-  • Range-based visual BiDi symbol inversion detection (Zero False Positives)
-       │
-       ▼
-[Multi-Candidate Closed-Loop Repair]
-  • Pass 1: Standard translation baseline audit
-  • Pass 2 & 3: Multi-length linguistic variant backtracking (compact / ultra-short)
-  • Pass 4: Dynamic CSS layout repair (min-width, flex-shrink, margin-right, unicode-bidi)
-       │
-       ▼
-[Source-Code Patcher & Reload Verification]
-  • Targets the responsible stylesheet identified by the browser
-  • Produces genuine unified Git diff patch (validated via git apply --check)
-  • Applies patch on disk, removes in-memory overrides, reloads page, and re-verifies in browser
-```
-
 ---
 
-## 🚀 CLI Commands
+## 🚀 Developer CLI Workflow
+
+Polyglot provides a complete command-line workflow controlled directly from your terminal, backed by local interactive HTML reports and verified Git diffs:
 
 ```bash
-# 1. Whole-DOM multilingual audit across locales & viewports
-polyglot scan https://your-app.com --locales de-DE,ar-SA --viewports desktop,mobile
+# 1. Initialize project configuration (creates polyglot.config.json)
+polyglot init --url http://localhost:3000 --locales de-DE,ar-SA,ja-JP --viewports desktop,mobile
 
-# 2. Inspect root causes and layout constraints
+# 2. Whole-DOM multilingual audit across locales & viewports (exits with code 1 on defects)
+polyglot scan http://localhost:3000 --locales de-DE,ar-SA --viewports desktop,mobile --fail-on any
+
+# 3. Open the standalone interactive HTML visual report in your default browser
+polyglot report
+
+# 4. Inspect root causes and layout constraints from JSON report
 polyglot diagnose polyglot_audit_report.json
 
-# 3. Closed-loop repair with source-code Git patch generation & reload verification
-polyglot repair https://your-app.com --locales de-DE,ar-SA --repo-path /path/to/source --verify
+# 5. Execute closed-loop multi-candidate repair & generate verified Git diff patch
+polyglot fix http://localhost:3000 --locales de-DE,ar-SA --repo-path . --verify
+
+# 6. Verify cross-locale & multi-viewport regression immunity (Layer 6)
+polyglot verify http://localhost:3000 --locales en-US,de-DE,ar-SA --viewports desktop,mobile
 ```
 
 ---
 
-## 🛠️ Supporting Microservices (Headless Shaping API)
+## 🤖 Turnkey GitHub Action Integration
 
-As an optional backend service, Polyglot includes a FastAPI microservice that pairs HarfBuzz OpenType C-shaping (`<1.5ms`) and OpenAI structured outputs for headless advance-width pre-calculation. *(Note: Payment subscriptions and billing tiers are currently on hold to focus 100% on core engineering QA and verified repair).*
+Drop Polyglot directly into `.github/workflows/polyglot.yml` to audit pull requests automatically, fail builds on layout breakage, write a formatted Markdown scorecard to `$GITHUB_STEP_SUMMARY`, and upload the interactive visual HTML report as a build artifact:
+
+```yaml
+- name: Run Polyglot Localization & Layout Audit
+  uses: Raghavender1234/polyglot-engine@main
+  with:
+    url: 'http://localhost:3000'
+    locales: 'de-DE,ar-SA,ja-JP'
+    viewports: 'desktop,mobile'
+    fail-on: 'any'
+```
+
+---
+
+## 🔬 Standalone Vision Model Benchmark (`scripts/benchmark_moondream.py`)
+
+To evaluate optional visual AI verification (Moondream 3.1 / 2) against deterministic Playwright geometry without bloating core CLI runs, use the standalone 50-case multilingual benchmark harness:
+
+```bash
+# Offline test & 50-case Playwright crop generator
+python scripts/benchmark_moondream.py --backend mock
+
+# Live evaluation against Moondream 3.1 Cloud API
+python scripts/benchmark_moondream.py --backend moondream3_api --api-key $MOONDREAM_API_KEY
+```
 
 ---
 
@@ -94,139 +109,59 @@ As an optional backend service, Polyglot includes a FastAPI microservice that pa
 polyglot-engine/
 ├── polyglot/                   # Modular Autonomous Layout & Closed-Loop Repair Package
 │   ├── __init__.py             # Version 1.3.0
-│   ├── cli.py                  # Developer CLI (scan, diagnose, repair)
-│   ├── scanner.py              # DOM element discovery & tree-walker text extractor
-│   ├── detector.py             # Whole-page collision & container overflow detector
+│   ├── cli.py                  # Developer CLI (init, scan, report, fix/repair, verify, diagnose)
+│   ├── scanner.py              # Whole-DOM element discovery & tree-walker text extractor
+│   ├── detector.py             # Whole-page collision, overflow & range-based BiDi detector
 │   ├── diagnosis.py            # Computed layout constraint & root-cause analyzer
 │   ├── patcher.py              # Dynamic geometry CSS generator & Git diff patcher
-│   ├── repair.py               # Closed-loop backtracking repair orchestrator
-│   └── reporting.py            # Evidence-based, truthful HTML/JSON reporting
-├── app/
+│   ├── repair.py               # Closed-loop backtracking repair & cross-locale verifier
+│   └── reporting.py            # Interactive HTML/JSON reporting with filter tabs & copyable diffs
+├── app/                        # Supporting Headless Shaping API Microservice
 │   ├── main.py                 # FastAPI routes, rate limiter, and core pipeline
-│   ├── models.py               # Pydantic schemas (Request/Response/Razorpay/Metrics)
-│   ├── database.py             # SQLite manager: orgs, hashed keys, orders, cache
-│   ├── billing.py              # Razorpay checkout & signature verification
-│   ├── auth.py                 # API Key authentication & quota enforcement
+│   ├── models.py               # Pydantic schemas (Request/Response/Metrics)
+│   ├── database.py             # SQLite manager: orgs, hashed keys, cache
 │   └── engines/
 │       ├── harfbuzz_meter.py   # HarfBuzz OpenType C-shaping engine (<1.5ms)
 │       ├── bidi_shield.py      # Unicode isolate injection (\u2066..\u2069)
 │       ├── css_mapper.py       # Script-specific CSS properties & line heights
 │       └── llm_translator.py   # 1-pass multi-variant translation (gpt-4o-mini + fallback)
-├── fonts/                      # Bundled reference OpenType TrueType fonts
-├── static/                     # Dark-mode visual playground & audit proof showcase
-├── scripts/                    # Headless inspection & CI scripts
+├── scripts/
+│   ├── benchmark_moondream.py  # Standalone 50-case Moondream 3.1 visual QA benchmark
+│   └── ci_check.py             # Headless JSON locale file verifier
 ├── tests/
-│   ├── test_polyglot_modules.py# Patcher, detector, diagnosis & reporting tests
+│   ├── test_cli.py             # CLI commands, scorecards, config init & exit code tests
+│   ├── test_polyglot_modules.py# Patcher, detector, diagnosis, BiDi & reporting tests
 │   ├── test_api.py             # API endpoint integration tests
 │   ├── test_bidi_shield.py     # BiDi isolation tests
 │   ├── test_harfbuzz.py        # HarfBuzz pixel measurement & scaling tests
-│   └── test_razorpay.py        # Razorpay order & key issuance tests
-├── pyproject.toml              # Build config & console script entrypoint
-├── requirements.txt
-└── polyglot.db
-```
-
----
-
-## 🛠️ Polyglot CLI — Automated Layout Scanner & Repair Engine
-
-Polyglot includes a clean developer CLI to scan any live URL or web app, diagnose root causes, and execute closed-loop layout repairs in an isolated browser.
-
-### 1. Full-Page Multilingual Layout Scan
-Scan any webpage across multiple target locales and viewports. Inspects the entire DOM, detects text overflows, and tests element bounding boxes against all visible page elements for collisions:
-```bash
-polyglot scan https://play.grafana.org/alerting/list --locales de-DE,ar-SA --viewports desktop,mobile --output audit.html --json audit.json
-```
-
-### 2. Root-Cause Layout Diagnosis
-Inspect why text broke or collided (e.g. `FLEX_CONTAINER_NO_WRAP`, `CSS_RIGID_WIDTH_CONSTRAINT`, `BIDI_DIRECTIONAL_ISOLATION`, or linguistic text expansion) and get actionable CSS remedies:
-```bash
-polyglot diagnose audit.json
-```
-
-### 3. Closed-Loop Multi-Candidate Repair & Verification
-Backtracks across candidate translation lengths (`standard` → `compact` → `ultra_short`), injects dynamically calculated non-hardcoded CSS overrides, re-evaluates in Playwright, and produces verified proof:
-```bash
-polyglot repair http://localhost:8000/static/showcase.html --locales de-DE --repo-path . --output repair.html
+│   └── test_razorpay.py        # Security & key issuance tests
+├── action.yml                  # Composite GitHub Action definition
+├── pyproject.toml              # Build config & `polyglot` console script entrypoint
+└── requirements.txt
 ```
 
 ---
 
 ## ⚡ Quickstart
 
-### 1. Run the Test Suite
+### 1. Install & Run the Test Suite
 ```bash
-python -m pytest -v
+pip install -e .
+playwright install chromium
+pytest -v
 ```
 
-### 2. Start the Server & Live Playground
+### 2. Audit & Repair a Local Web Application
 ```bash
+# Start sample server & interactive playground
 uvicorn app.main:app --reload --port 8000
+
+# Scan in another terminal
+polyglot scan http://localhost:8000/static/showcase.html --locales de-DE,ar-SA
+
+# View interactive visual report
+polyglot report
+
+# Run closed-loop repair and generate verified Git diff
+polyglot fix http://localhost:8000/static/showcase.html --locales de-DE --repo-path .
 ```
-Open **[http://localhost:8000](http://localhost:8000)** in your browser for the interactive testing playground.
-
-### 3. Run the CI/CD Localization Script on a JSON file
-```bash
-python scripts/ci_check.py --input locales/en.json --targets de-DE,ur-PK,ar-SA,ja-JP
-```
-
----
-
-## 📡 API Contract
-
-### Request: `POST /v1/localize`
-```json
-{
-  "source_text": "Complete Purchase - $49.99",
-  "source_locale": "en-US",
-  "target_locales": ["ur-PK", "ar-SA", "de-DE", "ja-JP"],
-  "ui_context": {
-    "element_type": "button",
-    "max_width_px": 145,
-    "font_size_px": 14
-  },
-  "glossary_id": "gls_prod_992"
-}
-```
-
-### Response: `200 OK`
-```json
-{
-  "source_text": "Complete Purchase - $49.99",
-  "results": {
-    "de-DE": {
-      "raw_text": "Kaufen - 49,99 $",
-      "ui_safe_text": "Kaufen - 49,99 $",
-      "variant_used": "compact",
-      "overflow_prevented": {
-        "rejected_full_text": "Kauf abschließen - 49,99 $",
-        "rejected_width_px": 180.67
-      },
-      "metrics": {
-        "measured_width_px": 112.66,
-        "max_width_px": 145.0,
-        "fits_container": true,
-        "recommended_font_scale": 1.0
-      },
-      "css_rules": {
-        "dir": "ltr",
-        "classes": "ltr-mode",
-        "font_family": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-        "line_height": "1.25",
-        "letter_spacing": "normal"
-      }
-    }
-  }
-}
-```
-
----
-
-## 🐳 Render Deployment
-1. Connect your GitHub repository to [render.com](https://render.com).
-2. Render detects `render.yaml` and `Dockerfile`.
-3. Provide environment variables:
-   - `OPENAI_API_KEY`
-   - `RAZORPAY_KEY_ID`
-   - `RAZORPAY_KEY_SECRET`
-   - `ENV=production`

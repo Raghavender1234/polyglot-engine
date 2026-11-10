@@ -94,6 +94,7 @@ class HTMLReportGenerator:
         dynamic_css = data.get("dynamic_css", "")
         git_patch = data.get("git_patch", "")
         screenshots = data.get("screenshots", {})
+        diagnosed_issues = data.get("diagnosed_issues", [])
 
         total_scanned = data.get('total_scanned', 0)
         total_evaluated = data.get('total_evaluated', data.get('total_translated', 0))
@@ -105,6 +106,20 @@ class HTMLReportGenerator:
             scan_summary = f"Evaluated across whole DOM: {total_dom} DOM nodes ({excluded_cnt or 0} non-text/hidden excluded by design) | {total_scanned} elements discovered | {total_evaluated} tested | {total_skipped} skipped."
         else:
             scan_summary = f"Evaluated across entire DOM: {total_scanned} elements discovered | {total_evaluated} tested | {total_skipped} skipped."
+
+        issues_rows = ""
+        for idx, iss in enumerate(diagnosed_issues):
+            cat = esc(iss.get("category", "LAYOUT_DEFECT"))
+            sel = esc(iss.get("selector", "unknown"))
+            exp = esc(iss.get("explanation", ""))
+            rem = esc(iss.get("remedy", ""))
+            issues_rows += f"""
+            <tr class="issue-row" data-category="{cat}">
+              <td style="padding: 10px; border-bottom: 1px solid #334155; font-family: monospace; color: #38bdf8;">{sel}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #334155;"><span class="cat-pill">{cat}</span></td>
+              <td style="padding: 10px; border-bottom: 1px solid #334155; color: #cbd5e1;">{exp}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #334155; color: #34d399;">{rem}</td>
+            </tr>"""
 
         return f"""<!DOCTYPE html>
 <html lang="en">
@@ -125,9 +140,42 @@ class HTMLReportGenerator:
     .card.green .val {{ color: #10b981; }}
     .card.emerald .val {{ color: #34d399; }}
     .step-box {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 20px; }}
-    .step-title {{ font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 8px; }}
+    .step-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }}
+    .step-title {{ font-size: 16px; font-weight: 700; color: #38bdf8; }}
+    .copy-btn {{ background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }}
+    .copy-btn:hover {{ background: #1d4ed8; }}
+    .filter-btn {{ background: #0f172a; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-right: 6px; }}
+    .filter-btn.active {{ background: #2563eb; color: #fff; border-color: #2563eb; }}
+    .cat-pill {{ background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }}
+    th {{ text-align: left; padding: 10px; border-bottom: 2px solid #334155; color: #94a3b8; font-weight: 600; }}
     pre {{ background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; color: #38bdf8; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; }}
   </style>
+  <script>
+    function copyCode(id, btn) {{
+      var el = document.getElementById(id);
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText).then(function() {{
+        var orig = btn.innerText;
+        btn.innerText = "Copied! ✓";
+        setTimeout(function() {{ btn.innerText = orig; }}, 2000);
+      }});
+    }}
+    function filterIssues(cat, btn) {{
+      var btns = document.querySelectorAll('.filter-btn');
+      btns.forEach(function(b) {{ b.classList.remove('active'); }});
+      btn.classList.add('active');
+      var rows = document.querySelectorAll('.issue-row');
+      rows.forEach(function(r) {{
+        var rc = r.getAttribute('data-category') || '';
+        if (cat === 'ALL' || rc.indexOf(cat) !== -1) {{
+          r.style.display = '';
+        }} else {{
+          r.style.display = 'none';
+        }}
+      }});
+    }}
+  </script>
 </head>
 <body>
   <div class="container">
@@ -169,19 +217,51 @@ class HTMLReportGenerator:
     </div>
 """ + (f"""
     <div class="step-box">
-      <div class="step-title">Verified Dynamically Calculated CSS Layout Patch</div>
+      <div class="step-header">
+        <div class="step-title">Diagnosed Layout Defects & Root-Cause Remedies ({len(diagnosed_issues)})</div>
+        <div>
+          <button class="filter-btn active" onclick="filterIssues('ALL', this)">All</button>
+          <button class="filter-btn" onclick="filterIssues('FLEX', this)">Flex/Wrap</button>
+          <button class="filter-btn" onclick="filterIssues('WIDTH', this)">Rigid Width</button>
+          <button class="filter-btn" onclick="filterIssues('COLLISION', this)">Collision</button>
+          <button class="filter-btn" onclick="filterIssues('BIDI', this)">BiDi</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Selector</th>
+            <th>Category</th>
+            <th>Root Cause Explanation</th>
+            <th>Actionable Remedy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {issues_rows}
+        </tbody>
+      </table>
+    </div>
+""" if diagnosed_issues else "") + (f"""
+    <div class="step-box">
+      <div class="step-header">
+        <div class="step-title">Verified Dynamically Calculated CSS Layout Patch</div>
+        <button class="copy-btn" onclick="copyCode('css-patch-code', this)">Copy CSS Overrides</button>
+      </div>
       <p style="font-size: 13px; color: #94a3b8; margin: 0 0 12px 0;">
         Derived directly from failing element geometry and parent flex constraints (rejects broad generic tags):
       </p>
-      <pre><code>{esc(dynamic_css)}</code></pre>
+      <pre><code id="css-patch-code">{esc(dynamic_css)}</code></pre>
     </div>
 """ if dynamic_css else "") + (f"""
     <div class="step-box">
-      <div class="step-title">Verified Unified Git Diff Patch</div>
+      <div class="step-header">
+        <div class="step-title">Verified Unified Git Diff Patch</div>
+        <button class="copy-btn" onclick="copyCode('git-patch-code', this)">Copy Git Diff Patch</button>
+      </div>
       <p style="font-size: 13px; color: #94a3b8; margin: 0 0 12px 0;">
         Generated directly against local source stylesheet and validated via <code>git apply --check</code>:
       </p>
-      <pre><code>{esc(git_patch)}</code></pre>
+      <pre><code id="git-patch-code">{esc(git_patch)}</code></pre>
     </div>
 """ if git_patch else "") + (f"""
     <div class="step-box">
@@ -208,6 +288,11 @@ class HTMLReportGenerator:
         total_ovf = sum(r.get("initial_overflows", 0) for r in runs)
         total_col = sum(r.get("initial_collisions", 0) for r in runs)
         total_res = sum((r.get("resolved_overflows") or 0) + (r.get("resolved_collisions") or 0) for r in runs)
+        unique_locales = sorted(list({str(r.get("locale", "unknown")) for r in runs}))
+        locale_buttons = "".join(
+            f'<button class="loc-btn" onclick="filterRuns(\'{esc(loc)}\', this)">{esc(loc)}</button>'
+            for loc in unique_locales
+        )
 
         html_out = f"""<!DOCTYPE html>
 <html lang="en">
@@ -226,10 +311,38 @@ class HTMLReportGenerator:
     .card.amber .val {{ color: #f59e0b; }}
     .card.green .val {{ color: #10b981; }}
     .card.emerald .val {{ color: #34d399; }}
+    .filter-bar {{ margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }}
+    .loc-btn {{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }}
+    .loc-btn.active {{ background: #2563eb; color: #fff; border-color: #2563eb; }}
     .run-card {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 20px; }}
     .run-title {{ font-size: 18px; font-weight: 700; color: #38bdf8; margin-bottom: 12px; display: flex; justify-content: space-between; }}
+    .copy-btn {{ background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }}
     pre {{ background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; color: #38bdf8; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; }}
   </style>
+  <script>
+    function filterRuns(loc, btn) {{
+      var btns = document.querySelectorAll('.loc-btn');
+      btns.forEach(function(b) {{ b.classList.remove('active'); }});
+      btn.classList.add('active');
+      var cards = document.querySelectorAll('.run-card');
+      cards.forEach(function(c) {{
+        if (loc === 'ALL' || c.getAttribute('data-locale') === loc) {{
+          c.style.display = '';
+        }} else {{
+          c.style.display = 'none';
+        }}
+      }});
+    }}
+    function copyCode(id, btn) {{
+      var el = document.getElementById(id);
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText).then(function() {{
+        var orig = btn.innerText;
+        btn.innerText = "Copied! ✓";
+        setTimeout(function() {{ btn.innerText = orig; }}, 2000);
+      }});
+    }}
+  </script>
 </head>
 <body>
   <div class="container">
@@ -258,8 +371,14 @@ class HTMLReportGenerator:
         <div class="val">{total_res}</div>
       </div>
     </div>
+
+    <div class="filter-bar">
+      <span style="font-size: 13px; color: #94a3b8; margin-right: 4px;">Filter by Locale:</span>
+      <button class="loc-btn active" onclick="filterRuns('ALL', this)">All Locales ({total_runs})</button>
+      {locale_buttons}
+    </div>
 """
-        for r in runs:
+        for idx, r in enumerate(runs):
             init_c = r.get("initial_collisions", 0)
             fin_c = r.get("final_collisions")
             init_o = r.get("initial_overflows", 0)
@@ -290,11 +409,12 @@ class HTMLReportGenerator:
                 col_s = f"{init_c} → {fin_c}"
 
             res_cnt = (r.get('resolved_overflows') or 0) + (r.get('resolved_collisions') or 0)
+            loc_str = esc(r.get("locale"))
 
             html_out += f"""
-    <div class="run-card">
+    <div class="run-card" data-locale="{loc_str}">
       <div class="run-title">
-        <span>🌍 Locale: <code>{esc(r.get('locale'))}</code> | Viewport: <code>{esc(r.get('viewport'))}</code></span>
+        <span>🌍 Locale: <code>{loc_str}</code> | Viewport: <code>{esc(r.get('viewport'))}</code></span>
         <span>{status_lbl}</span>
       </div>
       <div style="display: flex; gap: 24px; font-size: 14px; color: #94a3b8; margin-bottom: 12px;">
@@ -306,8 +426,19 @@ class HTMLReportGenerator:
 """
             if r.get("dynamic_css"):
                 html_out += f"""
-      <div style="font-size: 13px; font-weight: 600; color: #60a5fa; margin-top: 8px;">Dynamically Generated Layout Patch:</div>
-      <pre><code>{esc(r.get('dynamic_css'))}</code></pre>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: #60a5fa;">Dynamically Generated Layout Patch:</div>
+        <button class="copy-btn" onclick="copyCode('run-css-{idx}', this)">Copy CSS</button>
+      </div>
+      <pre><code id="run-css-{idx}">{esc(r.get('dynamic_css'))}</code></pre>
+"""
+            if r.get("git_patch"):
+                html_out += f"""
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: #34d399;">Verified Unified Git Diff Patch:</div>
+        <button class="copy-btn" onclick="copyCode('run-patch-{idx}', this)">Copy Git Patch</button>
+      </div>
+      <pre><code id="run-patch-{idx}">{esc(r.get('git_patch'))}</code></pre>
 """
             html_out += "    </div>\n"
 

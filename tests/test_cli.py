@@ -17,11 +17,16 @@ from polyglot.cli import (
     main,
     format_scan_scorecard,
     format_repair_scorecard,
+    format_verify_scorecard,
     format_markdown_summary,
     write_ci_summary,
     evaluate_exit_code,
+    load_project_config,
+    cmd_init,
     cmd_report,
 )
+from polyglot.reporting import HTMLReportGenerator
+
 
 
 
@@ -198,4 +203,90 @@ def test_write_ci_summary_to_file():
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+def test_cmd_init_and_load_project_config():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cfg_path = os.path.join(temp_dir, "polyglot.config.json")
+        args = MagicMock()
+        args.url = "http://localhost:4200"
+        args.locales = "de-DE,ar-SA"
+        args.viewports = "desktop,mobile"
+        args.config = cfg_path
+
+        cmd_init(args)
+        assert os.path.exists(cfg_path)
+
+        loaded = load_project_config(cfg_path)
+        assert loaded["url"] == "http://localhost:4200"
+        assert loaded["locales"] == ["de-DE", "ar-SA"]
+        assert loaded["viewports"] == ["desktop", "mobile"]
+
+
+def test_format_verify_scorecard():
+    ver_data = {
+        "total_matrix_runs": 2,
+        "regressions_introduced": 0,
+        "regression_rate_pct": 0.0,
+        "all_locales_clean": True,
+        "matrix_results": {
+            "en-US@desktop": {
+                "locale": "en-US",
+                "viewport": "desktop",
+                "overflows": 0,
+                "collisions": 0,
+                "bidi": 0,
+                "is_clean": True
+            },
+            "de-DE@desktop": {
+                "locale": "de-DE",
+                "viewport": "desktop",
+                "overflows": 0,
+                "collisions": 0,
+                "bidi": 0,
+                "is_clean": True
+            }
+        }
+    }
+    scorecard = format_verify_scorecard("http://localhost:3000", ver_data)
+    assert "POLYGLOT CROSS-LOCALE REGRESSION VERIFICATION" in scorecard
+    assert "CLEAN ✅" in scorecard
+    assert "Rate: 0.0%" in scorecard
+
+
+def test_html_report_interactive_copy_and_filters():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        out_path = os.path.join(temp_dir, "interactive_report.html")
+        data = {
+            "target_url": "http://localhost:3000",
+            "locale": "de-DE",
+            "viewport": "desktop",
+            "verified": True,
+            "total_scanned": 5,
+            "total_evaluated": 5,
+            "total_skipped": 0,
+            "provenance_counts": {"OPENAI_API": 5},
+            "initial_overflows": 1,
+            "initial_collisions": 0,
+            "final_overflows": 0,
+            "final_collisions": 0,
+            "resolved_overflows": 1,
+            "dynamic_css": ".btn { min-width: 160px; }",
+            "git_patch": "--- a/style.css\n+++ b/style.css",
+            "diagnosed_issues": [{
+                "category": "CSS_RIGID_WIDTH_CONSTRAINT",
+                "selector": ".btn",
+                "explanation": "Fixed width clipped German compound",
+                "remedy": "Use min-width instead of fixed width"
+            }]
+        }
+        HTMLReportGenerator.generate(data, out_path)
+        with open(out_path, "r", encoding="utf-8") as f:
+            html_out = f.read()
+
+        assert "Copy CSS Overrides" in html_out
+        assert "Copy Git Diff Patch" in html_out
+        assert "filterIssues('FLEX', this)" in html_out
+        assert "CSS_RIGID_WIDTH_CONSTRAINT" in html_out
+
 

@@ -1,12 +1,15 @@
 """
 Polyglot CLI — Automated Localization Layout Scanner & Verified Repair Engine
 Commands:
-  polyglot scan <url> [--locales ...] [--viewports ...] [--output ...] [--fail-on ...]
+  polyglot init [--url ...] [--locales ...] [--config ...]
+  polyglot scan [url] [--locales ...] [--viewports ...] [--output ...] [--fail-on ...]
   polyglot report [report.html] [--no-open]
-  polyglot fix <url> [--strategy auto|css-only|text-only] [--repo-path ...]
-  polyglot repair <url> (alias for fix)
+  polyglot fix [url] [--strategy auto|css-only|text-only] [--repo-path ...]
+  polyglot repair [url] (alias for fix)
+  polyglot verify [url] [--locales ...] [--viewports ...]
   polyglot diagnose <report.json>
 """
+
 
 import os
 import sys
@@ -43,6 +46,51 @@ VIEWPORT_PRESETS = {
     "mobile": {"width": 390, "height": 844},
     "tablet": {"width": 768, "height": 1024}
 }
+
+
+def load_project_config(config_path: str = "polyglot.config.json") -> Dict[str, Any]:
+    """Loads project configuration from polyglot.config.json if present."""
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def format_verify_scorecard(target_url: str, ver_data: Dict[str, Any]) -> str:
+    """Renders an ASCII scorecard for Layer 6 Cross-Locale Regression Verification."""
+    lines = []
+    lines.append("")
+    lines.append("=" * 86)
+    lines.append(f"  POLYGLOT CROSS-LOCALE REGRESSION VERIFICATION: {target_url}")
+    lines.append("=" * 86)
+    lines.append(f" {'Locale':<10} | {'Viewport':<16} | {'Overflows':<10} | {'Collisions':<11} | {'BiDi Errors':<12} | {'Status':<10}")
+    lines.append("-" * 86)
+
+    matrix = ver_data.get("matrix_results", {})
+    for key, res in matrix.items():
+        loc = res.get("locale", "unknown")
+        vp = res.get("viewport", "desktop")
+        ov = res.get("overflows", 0)
+        col = res.get("collisions", 0)
+        bidi = res.get("bidi", 0)
+        clean = res.get("is_clean", False)
+        status = "CLEAN ✅" if clean else "REGRESSED ❌"
+        lines.append(f" {loc:<10} | {vp:<16} | {ov:<10} | {col:<11} | {bidi:<12} | {status:<10}")
+
+    lines.append("-" * 86)
+    tot_runs = ver_data.get("total_matrix_runs", 0)
+    reg_cnt = ver_data.get("regressions_introduced", 0)
+    reg_rate = ver_data.get("regression_rate_pct", 0.0)
+    all_clean = ver_data.get("all_locales_clean", False)
+    overall = "CLEAN ✅" if all_clean else "REGRESSED ❌"
+    lines.append(f" {'SUMMARY':<10} | {f'{tot_runs} matrix runs':<16} | {'Regressions: ' + str(reg_cnt):<23} | {'Rate: ' + str(reg_rate) + '%':<12} | {overall:<10}")
+    lines.append("=" * 86)
+    lines.append("")
+    return "\n".join(lines)
+
 
 
 def format_scan_scorecard(target_url: str, all_runs: List[Dict[str, Any]]) -> str:
@@ -251,12 +299,23 @@ def cmd_scan(args):
         print("❌ Error: Playwright is not installed. Please run: pip install playwright && playwright install chromium")
         sys.exit(1)
 
-    url = args.url
-    locales = [loc.strip() for loc in args.locales.split(",") if loc.strip()]
-    viewports = [vp.strip().lower() for vp in args.viewports.split(",") if vp.strip()]
+    proj_cfg = load_project_config()
+    url = args.url or proj_cfg.get("url")
+    if not url:
+        print("❌ Error: No target URL specified. Provide a URL argument or run 'polyglot init' to create polyglot.config.json.")
+        sys.exit(1)
+
+    cfg_locales = ",".join(proj_cfg.get("locales", [])) if isinstance(proj_cfg.get("locales"), list) else proj_cfg.get("locales")
+    cfg_viewports = ",".join(proj_cfg.get("viewports", [])) if isinstance(proj_cfg.get("viewports"), list) else proj_cfg.get("viewports")
+    raw_locales = args.locales if args.locales != "de-DE" or not cfg_locales else cfg_locales
+    raw_viewports = args.viewports if args.viewports != "desktop" or not cfg_viewports else cfg_viewports
+
+    locales = [loc.strip() for loc in raw_locales.split(",") if loc.strip()]
+    viewports = [vp.strip().lower() for vp in raw_viewports.split(",") if vp.strip()]
     bypass_presets = args.bypass_presets
     max_elements = args.max_elements
     headless = not args.no_headless
+
 
     print(f"🚀 Polyglot Scan initiated for: {url}")
     print(f"🌍 Locales: {', '.join(locales)} | Viewports: {', '.join(viewports)}")
@@ -496,15 +555,26 @@ def cmd_repair(args):
         print("❌ Error: Playwright is not installed. Please run: pip install playwright && playwright install chromium")
         sys.exit(1)
 
-    url = args.url
-    locales = [loc.strip() for loc in args.locales.split(",") if loc.strip()]
-    viewports = [vp.strip().lower() for vp in args.viewports.split(",") if vp.strip()]
+    proj_cfg = load_project_config()
+    url = args.url or proj_cfg.get("url")
+    if not url:
+        print("❌ Error: No target URL specified. Provide a URL argument or run 'polyglot init' to create polyglot.config.json.")
+        sys.exit(1)
+
+    cfg_locales = ",".join(proj_cfg.get("locales", [])) if isinstance(proj_cfg.get("locales"), list) else proj_cfg.get("locales")
+    cfg_viewports = ",".join(proj_cfg.get("viewports", [])) if isinstance(proj_cfg.get("viewports"), list) else proj_cfg.get("viewports")
+    raw_locales = args.locales if args.locales != "de-DE" or not cfg_locales else cfg_locales
+    raw_viewports = args.viewports if args.viewports != "desktop" or not cfg_viewports else cfg_viewports
+
+    locales = [loc.strip() for loc in raw_locales.split(",") if loc.strip()]
+    viewports = [vp.strip().lower() for vp in raw_viewports.split(",") if vp.strip()]
     strategy = args.strategy
     repo_path = args.repo_path
     bypass_presets = args.bypass_presets
     max_elements = args.max_elements
     verify = args.verify
     headless = not args.no_headless
+
 
     print(f"🛠️  Polyglot Closed-Loop Repair initiated for: {url}")
     print(f"🌍 Locales: {', '.join(locales)} | Viewports: {', '.join(viewports)} | Strategy: {strategy} | Verify: {verify}")
@@ -683,6 +753,110 @@ def cmd_repair(args):
         sys.exit(exit_code)
 
 
+def cmd_init(args):
+    """Creates a polyglot.config.json in the current directory for zero-friction CLI usage."""
+    config_file = args.config
+    locales = [loc.strip() for loc in args.locales.split(",") if loc.strip()]
+    viewports = [vp.strip().lower() for vp in args.viewports.split(",") if vp.strip()]
+    default_cfg = {
+        "url": args.url,
+        "locales": locales,
+        "viewports": viewports,
+        "strategy": "auto",
+        "fail_on": "any",
+        "output_report": "polyglot_audit_report.html"
+    }
+    with open(config_file, "w", encoding="utf-8") as f:
+        json.dump(default_cfg, f, indent=2, ensure_ascii=False)
+
+    print("=" * 70)
+    print(f"✅ Initialized Polyglot configuration: {os.path.abspath(config_file)}")
+    print("=" * 70)
+    print(f"🌍 Default Target URL: {args.url}")
+    print(f"🗣️  Locales:           {', '.join(locales)}")
+    print(f"📱 Viewports:         {', '.join(viewports)}")
+    print("\nQuickstart commands:")
+    print("  1. polyglot scan             # Audit all configured locales & viewports")
+    print("  2. polyglot report           # Open interactive visual HTML report")
+    print("  3. polyglot fix              # Generate verified source-code repairs")
+    print("  4. polyglot verify           # Run cross-locale regression verification")
+    print("=" * 70)
+
+
+def cmd_verify(args):
+    """Executes Layer 6 Cross-Locale Regression Verification across locales & viewports."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("❌ Error: Playwright is not installed. Please run: pip install playwright && playwright install chromium")
+        sys.exit(1)
+
+    proj_cfg = load_project_config()
+    url = args.url or proj_cfg.get("url")
+    if not url:
+        print("❌ Error: No target URL specified. Provide a URL argument or run 'polyglot init' to create polyglot.config.json.")
+        sys.exit(1)
+
+    cfg_locales = ",".join(proj_cfg.get("locales", [])) if isinstance(proj_cfg.get("locales"), list) else proj_cfg.get("locales")
+    cfg_viewports = ",".join(proj_cfg.get("viewports", [])) if isinstance(proj_cfg.get("viewports"), list) else proj_cfg.get("viewports")
+    raw_locales = args.locales if args.locales != "en-US,de-DE,ar-SA" or not cfg_locales else cfg_locales
+    raw_viewports = args.viewports if args.viewports != "desktop,mobile" or not cfg_viewports else cfg_viewports
+
+    locales = [loc.strip() for loc in raw_locales.split(",") if loc.strip()]
+    if "en-US" not in locales:
+        locales.insert(0, "en-US")
+    vp_names = [vp.strip().lower() for vp in raw_viewports.split(",") if vp.strip()]
+    vp_list = [{"name": vn, **VIEWPORT_PRESETS.get(vn, VIEWPORT_PRESETS["desktop"])} for vn in vp_names]
+    headless = not args.no_headless
+
+    print(f"🛡️  Polyglot Cross-Locale Regression Verification for: {url}")
+    print(f"🌍 Matrix Locales: {', '.join(locales)} | Viewports: {', '.join(vp_names)}")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        try:
+            page = browser.new_page()
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            raw_elements, _ = DOMScanner.discover_with_stats(page)
+            target_ids = [el["id"] for el in raw_elements]
+
+            locale_payloads = {}
+            for loc in locales:
+                payload = []
+                for el in raw_elements:
+                    orig_text = el["text"]
+                    if loc.startswith("en"):
+                        payload.append({"id": el["id"], "text": orig_text, "dir": "ltr"})
+                    else:
+                        variants, _ = llm_engine.generate_variants_with_provenance(
+                            source_text=orig_text,
+                            target_locale=loc,
+                            element_type=el.get("tag", "span"),
+                            bypass_presets=False
+                        )
+                        is_rtl = loc.split("-")[0] in ("ar", "he", "fa", "ur")
+                        payload.append({
+                            "id": el["id"],
+                            "text": variants.get("standard", orig_text),
+                            "dir": "rtl" if is_rtl else "ltr"
+                        })
+                locale_payloads[loc] = payload
+
+            ver_results = RepairOrchestrator.verify_cross_locale_regression(
+                page=page,
+                target_ids=target_ids,
+                locale_payloads=locale_payloads,
+                viewports=vp_list
+            )
+        finally:
+            browser.close()
+
+    print(format_verify_scorecard(url, ver_results))
+    if not ver_results.get("all_locales_clean", False) and getattr(args, "fail_on", "any") != "none":
+        print("🛑 Cross-locale verification failed: layout regressions detected.")
+        sys.exit(1)
+
+
 def cmd_report(args):
     """Opens the generated HTML visual report in the default web browser."""
     report_file = args.report_file
@@ -714,7 +888,7 @@ def cmd_report(args):
 
 def _configure_repair_args(subparser):
     """Common arguments shared between 'repair' and 'fix' commands."""
-    subparser.add_argument("url", help="Target URL to repair")
+    subparser.add_argument("url", nargs="?", default=None, help="Target URL to repair (or read from polyglot.config.json)")
     subparser.add_argument("--locales", default="de-DE", help="Comma-separated target locales (e.g. de-DE,ar-SA)")
     subparser.add_argument("--viewports", default="desktop", help="Comma-separated viewports: desktop, mobile, tablet")
     subparser.add_argument("--strategy", default="auto", choices=["auto", "css-only", "text-only"], help="Repair strategy")
@@ -738,9 +912,17 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command", required=True, help="Available subcommands")
 
+    # Command: init
+    init_parser = subparsers.add_parser("init", help="Initialize polyglot.config.json in the current directory")
+    init_parser.add_argument("--url", default="http://localhost:3000", help="Default target URL")
+    init_parser.add_argument("--locales", default="de-DE,ar-SA,ja-JP", help="Default comma-separated locales")
+    init_parser.add_argument("--viewports", default="desktop,mobile", help="Default comma-separated viewports")
+    init_parser.add_argument("--config", default="polyglot.config.json", help="Path to write configuration file")
+    init_parser.set_defaults(func=cmd_init)
+
     # Command: scan
     scan_parser = subparsers.add_parser("scan", help="Scan a target webpage for multilingual layout breakage")
-    scan_parser.add_argument("url", help="Target URL to inspect (e.g. https://play.grafana.org/alerting/list)")
+    scan_parser.add_argument("url", nargs="?", default=None, help="Target URL to inspect (or read from polyglot.config.json)")
     scan_parser.add_argument("--locales", default="de-DE", help="Comma-separated target locales (e.g. de-DE,ar-SA)")
     scan_parser.add_argument("--viewports", default="desktop", help="Comma-separated viewports: desktop, mobile, tablet")
     scan_parser.add_argument("--output", default="polyglot_audit_report.html", help="Path to write HTML report")
@@ -766,6 +948,15 @@ def main():
     rep_parser = subparsers.add_parser("repair", help="Execute closed-loop multi-candidate repair on a webpage")
     _configure_repair_args(rep_parser)
 
+    # Command: verify
+    ver_parser = subparsers.add_parser("verify", help="Run cross-locale & multi-viewport regression verification")
+    ver_parser.add_argument("url", nargs="?", default=None, help="Target URL to verify (or read from polyglot.config.json)")
+    ver_parser.add_argument("--locales", default="en-US,de-DE,ar-SA", help="Comma-separated locales to verify against regressions")
+    ver_parser.add_argument("--viewports", default="desktop,mobile", help="Comma-separated viewports: desktop, mobile, tablet")
+    ver_parser.add_argument("--fail-on", choices=["any", "none"], default="any", help="Exit with code 1 if any regression is detected")
+    ver_parser.add_argument("--no-headless", action="store_true", help="Run browser in headful mode")
+    ver_parser.set_defaults(func=cmd_verify)
+
     # Command: diagnose
     diag_parser = subparsers.add_parser("diagnose", help="Diagnose root causes from an existing JSON audit report")
     diag_parser.add_argument("report_file", help="Path to JSON audit report file")
@@ -773,6 +964,7 @@ def main():
 
     parsed = parser.parse_args()
     parsed.func(parsed)
+
 
 
 
