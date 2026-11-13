@@ -1,0 +1,24 @@
+{
+  "name": "polyglot-engine",
+  "version": "1.4.0",
+  "description": "Developer-first CLI that scans, diagnoses, and repairs multilingual UI layout problems directly inside your codebase",
+  "main": "bin/polyglot.js",
+  "bin": {
+    "polyglot": "bin/polyglot.js"
+  },
+  "keywords": [
+    "i18n",
+    "localization",
+    "visual-testing",
+    "playwright",
+    "layout-testing",
+    "qa",
+    "developer-tools",
+    "css-repair"
+  ],
+  "author": "Polyglot Engine Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
