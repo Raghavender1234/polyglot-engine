@@ -36,6 +36,12 @@ PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
             compact="購入を完了 - $49.99",
             ultra_short="購入 - $49.99",
             cultural_notes="Japanese drops verb auxiliaries in buttons to preserve space."
+        ),
+        "te-in": TranslationVariants(
+            standard="కొనుగోలు పూర్తి చేయండి - $49.99",
+            compact="కొనుగోలు - $49.99",
+            ultra_short="కొనండి - $49.99",
+            cultural_notes="Telugu standard e-commerce CTA with currency."
         )
     },
     "subscribe to pro (annual)": {
@@ -62,6 +68,12 @@ PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
             compact="Proに登録（年額）",
             ultra_short="Pro年額登録",
             cultural_notes="Japanese nominalized action."
+        ),
+        "te-in": TranslationVariants(
+            standard="ప్రో సబ్‌స్క్రిప్షన్ పొందండి (వార్షిక)",
+            compact="ప్రో సబ్‌స్క్రైబ్ (వార్షిక)",
+            ultra_short="వార్షిక ప్రో",
+            cultural_notes="Telugu SaaS subscription."
         )
     },
     "sign in with google account": {
@@ -88,37 +100,48 @@ PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
             compact="Googleでログイン",
             ultra_short="Googleログイン",
             cultural_notes="Japanese standard OAuth button."
+        ),
+        "te-in": TranslationVariants(
+            standard="గూగుల్ ఖాతాతో సైన్ ఇన్ చేయండి",
+            compact="గూగుల్‌తో సైన్ ఇన్",
+            ultra_short="గూగుల్ లాగిన్",
+            cultural_notes="Telugu OAuth button."
         )
     },
     "products": {
         "de-de": TranslationVariants(standard="Produkte", compact="Produkte", ultra_short="Prod.", cultural_notes="German UI navigation."),
         "ur-pk": TranslationVariants(standard="مصنوعات", compact="مصنوعات", ultra_short="پروڈکٹس", cultural_notes="Urdu menu item."),
         "ar-sa": TranslationVariants(standard="المنتجات", compact="منتجات", ultra_short="منتجات", cultural_notes="Arabic navigation."),
-        "ja-jp": TranslationVariants(standard="製品一覧", compact="製品", ultra_short="製品", cultural_notes="Japanese navigation.")
+        "ja-jp": TranslationVariants(standard="製品一覧", compact="製品", ultra_short="製品", cultural_notes="Japanese navigation."),
+        "te-in": TranslationVariants(standard="ఉత్పత్తులు", compact="ఉత్పత్తులు", ultra_short="ఉత్పత్తులు", cultural_notes="Telugu menu item.")
     },
     "pricing": {
         "de-de": TranslationVariants(standard="Preise und Tarife", compact="Preise", ultra_short="Preise", cultural_notes="German pricing."),
         "ur-pk": TranslationVariants(standard="قیمتیں اور پلانز", compact="قیمتیں", ultra_short="قیمت", cultural_notes="Urdu pricing."),
         "ar-sa": TranslationVariants(standard="الأسعار والباقات", compact="الأسعار", ultra_short="الأسعار", cultural_notes="Arabic pricing."),
-        "ja-jp": TranslationVariants(standard="料金プラン", compact="料金", ultra_short="料金", cultural_notes="Japanese pricing.")
+        "ja-jp": TranslationVariants(standard="料金プラン", compact="料金", ultra_short="料金", cultural_notes="Japanese pricing."),
+        "te-in": TranslationVariants(standard="ధరల ప్రణాళికలు", compact="ధరల పట్టిక", ultra_short="ధరలు", cultural_notes="Telugu pricing options.")
     },
     "get started": {
         "de-de": TranslationVariants(standard="Jetzt kostenlos starten", compact="Jetzt starten", ultra_short="Starten", cultural_notes="German CTA."),
         "ur-pk": TranslationVariants(standard="ابھی مفت شروع کریں", compact="شروع کریں", ultra_short="شروع", cultural_notes="Urdu CTA."),
         "ar-sa": TranslationVariants(standard="ابدأ مجاناً الآن", compact="ابدأ الآن", ultra_short="ابدأ", cultural_notes="Arabic CTA."),
-        "ja-jp": TranslationVariants(standard="無料で今すぐ始める", compact="今すぐ始める", ultra_short="始める", cultural_notes="Japanese CTA.")
+        "ja-jp": TranslationVariants(standard="無料で今すぐ始める", compact="今すぐ始める", ultra_short="始める", cultural_notes="Japanese CTA."),
+        "te-in": TranslationVariants(standard="ఇప్పుడే ఉచితంగా ప్రారంభించండి", compact="ప్రారంభించండి", ultra_short="స్టార్ట్", cultural_notes="Telugu primary CTA.")
     },
     "talk to sales": {
         "de-de": TranslationVariants(standard="Vertriebsteam kontaktieren", compact="Vertrieb kontaktieren", ultra_short="Kontakt", cultural_notes="German sales."),
         "ur-pk": TranslationVariants(standard="سیلز ٹیم سے رابطہ کریں", compact="سیلز سے رابطہ", ultra_short="رابطہ", cultural_notes="Urdu sales."),
         "ar-sa": TranslationVariants(standard="تحدث مع فريق المبيعات", compact="تواصل مع المبيعات", ultra_short="المبيعات", cultural_notes="Arabic sales."),
-        "ja-jp": TranslationVariants(standard="営業チームにお問い合わせ", compact="営業へ相談", ultra_short="問い合わせ", cultural_notes="Japanese sales.")
+        "ja-jp": TranslationVariants(standard="営業チームにお問い合わせ", compact="営業へ相談", ultra_short="問い合わせ", cultural_notes="Japanese sales."),
+        "te-in": TranslationVariants(standard="సేల్స్ బృందంతో మాట్లాడండి", compact="సేల్స్‌తో సంప్రదింపు", ultra_short="సంప్రదించండి", cultural_notes="Telugu sales inquiry.")
     },
     "case study": {
         "de-de": TranslationVariants(standard="Ausführliche Fallstudie", compact="Fallstudie", ultra_short="Studie", cultural_notes="German case study."),
         "ur-pk": TranslationVariants(standard="مکمل کیس اسٹڈی", compact="کیس اسٹڈی", ultra_short="مطالعہ", cultural_notes="Urdu case study."),
         "ar-sa": TranslationVariants(standard="دراسة حالة مفصلة", compact="دراسة حالة", ultra_short="دراسة", cultural_notes="Arabic case study."),
-        "ja-jp": TranslationVariants(standard="導入事例の詳細", compact="導入事例", ultra_short="事例", cultural_notes="Japanese case study.")
+        "ja-jp": TranslationVariants(standard="導入事例の詳細", compact="導入事例", ultra_short="事例", cultural_notes="Japanese case study."),
+        "te-in": TranslationVariants(standard="వినియోగ కేస్ స్టడీ వివరాలు", compact="కేస్ స్టడీ", ultra_short="కేస్ స్టడీ", cultural_notes="Telugu case study.")
     },
     "finding a time took a week of emails.": {
         "de-de": TranslationVariants(
@@ -144,6 +167,12 @@ PRESET_TRANSLATIONS: Dict[str, Dict[str, TranslationVariants]] = {
             compact="日程調整に1週間のメールを消費。",
             ultra_short="日程調整に1週間を要した。",
             cultural_notes="Japanese preserves semantic nuance."
+        ),
+        "te-in": TranslationVariants(
+            standard="సమయాన్ని నిర్ణయించడానికి ఈమెయిల్స్ ద్వారా ఒక వారం రోజులు పట్టింది.",
+            compact="సమయం కుదర్చడానికి వారం రోజుల ఈమెయిల్స్ పట్టాయి.",
+            ultra_short="సమయానికి 1 వారం పట్టింది.",
+            cultural_notes="Telugu complex duration sentence."
         )
     }
 }
@@ -239,8 +268,16 @@ class LLMTranslator:
 
         # Check offline high-quality presets first (unless bypass_presets is explicitly enabled or mode is pure openai)
         if not bypass_presets:
-            if clean_key in PRESET_TRANSLATIONS and clean_locale in PRESET_TRANSLATIONS[clean_key]:
-                return PRESET_TRANSLATIONS[clean_key][clean_locale], "PRESET"
+            if clean_key in PRESET_TRANSLATIONS:
+                loc_map = PRESET_TRANSLATIONS[clean_key]
+                if clean_locale in loc_map:
+                    return loc_map[clean_locale], "PRESET"
+                lang_code = clean_locale.split("-")[0]
+                if lang_code in loc_map:
+                    return loc_map[lang_code], "PRESET"
+                for k, v in loc_map.items():
+                    if k.startswith(f"{lang_code}-"):
+                        return v, "PRESET"
 
         # Explicit mode: openai (opt-in cloud LLM)
         if mode in ("openai", "auto") or bypass_presets:
