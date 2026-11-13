@@ -372,7 +372,12 @@ def cmd_scan(args):
                     except Exception:
                         pass
 
-                    page.wait_for_timeout(1000)
+                    # Wait for web fonts and layout stability (Task 3 & 4)
+                    try:
+                        page.evaluate("() => document.fonts.ready")
+                    except Exception:
+                        pass
+                    page.wait_for_timeout(300)
 
                     # 1. Discover Elements
                     raw_elements, stats = DOMScanner.discover_with_stats(page)
@@ -644,7 +649,12 @@ def cmd_repair(args):
                     except Exception:
                         pass
 
-                    page.wait_for_timeout(1000)
+                    # Wait for web fonts and layout stability (Task 3 & 4)
+                    try:
+                        page.evaluate("() => document.fonts.ready")
+                    except Exception:
+                        pass
+                    page.wait_for_timeout(300)
 
                     # 1. Discover Elements
                     raw_elements, stats = DOMScanner.discover_with_stats(page)

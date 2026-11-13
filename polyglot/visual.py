@@ -102,15 +102,26 @@ class VisualAIInspector:
                 f"Privacy violation prevented: --visual-ai=local refuses non-loopback endpoint '{local_url}'."
             )
 
-        # 1. Check if local Ollama daemon is reachable on loopback
+        # 1. Check if local Ollama daemon is reachable on loopback AND has moondream model pulled
         tags_url = local_url.replace("/api/generate", "/api/tags")
         try:
             req = urllib.request.Request(tags_url, method="GET")
             with urllib.request.urlopen(req, timeout=1.5) as resp:
                 if resp.status == 200:
-                    self._local_backend = "ollama_loopback"
-                    self.endpoint = local_url
-                    return
+                    data = json.loads(resp.read().decode("utf-8"))
+                    models = [m.get("name", "") for m in data.get("models", [])]
+                    # Check if moondream or any variant (e.g. moondream:latest) is installed
+                    has_moondream = any("moondream" in m.lower() for m in models)
+                    if has_moondream:
+                        self._local_backend = "ollama_loopback"
+                        self.endpoint = local_url
+                        return
+                    else:
+                        print(
+                            f"[VisualAI] Local Ollama daemon detected at {local_url}, but 'moondream' model is not installed.\n"
+                            f"Available models in Ollama: {models or 'None'}.\n"
+                            f"Action required: Run `ollama pull moondream` in your terminal."
+                        )
         except Exception:
             pass
 

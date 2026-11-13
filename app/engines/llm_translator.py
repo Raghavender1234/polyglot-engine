@@ -219,7 +219,7 @@ class LLMTranslator:
         target_locale: str,
         glossary: Optional[Dict[str, str]] = None,
         bypass_presets: bool = False,
-        mode: str = "local"
+        mode: str = "preset"
     ) -> Tuple[TranslationVariants, str]:
         clean_key = source_text.strip().lower()
         clean_locale = target_locale.lower().replace("_", "-")
@@ -231,16 +231,19 @@ class LLMTranslator:
                 compact=source_text,
                 ultra_short=source_text,
                 cultural_notes="Source locale baseline."
-            ), "PRESET"
+            ), "SOURCE"
 
-        # 1. Check offline high-quality presets first (unless bypass_presets is explicitly enabled)
+        # Explicit mode: pseudo (i18n stress testing only)
+        if mode == "pseudo":
+            return generate_pseudoloc_variants(source_text, target_locale), "PSEUDO"
+
+        # Check offline high-quality presets first (unless bypass_presets is explicitly enabled or mode is pure openai)
         if not bypass_presets:
             if clean_key in PRESET_TRANSLATIONS and clean_locale in PRESET_TRANSLATIONS[clean_key]:
                 return PRESET_TRANSLATIONS[clean_key][clean_locale], "PRESET"
 
-        # 2. External OpenAI API is strictly opt-in (mode == "openai" or bypass_presets == True)
-        #    When mode == "local" (CLI default), zero website text ever leaves the machine.
-        if mode == "openai" or bypass_presets:
+        # Explicit mode: openai (opt-in cloud LLM)
+        if mode in ("openai", "auto") or bypass_presets:
             client = self.get_client()
             if client:
                 try:
@@ -273,11 +276,23 @@ class LLMTranslator:
                     if parsed:
                         return parsed, "OPENAI_API"
                 except Exception as e:
-                    print(f"[LLMTranslator] OpenAI call failed: {e}. Falling back to pseudo-localization.")
-                    return generate_pseudoloc_variants(source_text, target_locale), "FALLBACK"
+                    print(f"[LLMTranslator] OpenAI call failed: {e}.")
+                    if mode == "openai":
+                        raise RuntimeError(f"OpenAI translation failed: {e}") from e
 
-        # 3. Local Fallback: Standard I18N Pseudo-Localization Engine (100% local, zero external network calls)
-        return generate_pseudoloc_variants(source_text, target_locale), "PSEUDO"
+        # If mode is preset or local, and not found in presets:
+        # In 'local' mode, developers expect an offline fallback to pseudo-loc or keeping original text.
+        # But we must NEVER claim it's a real translation.
+        if mode == "local":
+            return generate_pseudoloc_variants(source_text, target_locale), "PSEUDO"
+
+        # For strict preset mode, return original text marked UNTRANSLATED
+        return TranslationVariants(
+            standard=source_text,
+            compact=source_text,
+            ultra_short=source_text,
+            cultural_notes=f"Untranslated string: no preset found for '{source_text}' in {target_locale}."
+        ), "UNTRANSLATED"
 
     def generate_variants_with_provenance(
         self,
