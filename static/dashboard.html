@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polyglot Cloud - License & Subscription Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-[#0b0f17] text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Navbar -->
+  <nav class="border-b border-slate-800/80 bg-[#0d131f]/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-sky-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-cube text-white text-base"></i>
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Polyglot</span>
+          <span class="text-xs ml-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-semibold">Beta</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 text-sm">
+        <span class="text-slate-400 hidden sm:inline"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1.5"></i>Local Engine Verified</span>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-indigo-400">
+            JD
+          </div>
+          <span class="font-medium text-xs text-slate-300">developer@indicat.co.in</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
+
+    <!-- Privacy Banner -->
+    <div class="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <div>
+          <h4 class="font-semibold text-sm text-slate-100">Zero-Data Cloud Leak Architecture</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Your source code, stylesheets, DOM structures, and screenshots run 100% locally. The licensing server only manages authentication and quota.</p>
+        </div>
+      </div>
+      <span class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 whitespace-nowrap">
+        <i class="fa-solid fa-check mr-1.5"></i>Strict Privacy Compliant
+      </span>
+    </div>
+
+    <!-- Overview Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Card 1: Subscription Status -->
+      <div class="bg-[#111726] border border-slate-800/80 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Plan</span>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/30">Free Beta Trial</span>
+        </div>
+        <div class="text-2xl font-bold text-white mb-1">Developer Beta</div>
+        <p class="text-xs text-slate-400 mb-5">Trial valid until public release. Includes local scanning, CSS diffs, and verification.</p>
+        <button onclick="scrollToPlans()" class="w-full text-xs font-semibold py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center gap-2">
+          <span>Upgrade to Pro</span>
+          <i class="fa-solid fa-arrow-right text-[10px]"></i>
+        </button>
+      </div>
+
+      <!-- Card 2: API & License Key -->
+      <div class="bg-[#111726] border border-slate-800/80 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">CLI License Key</span>
+          <span class="text-xs text-emerald-400 font-medium"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Active</span>
+        </div>
+        <div class="bg-[#0b0f17] border border-slate-800 rounded-xl p-3 flex items-center justify-between mb-3 font-mono text-xs text-slate-300">
+          <span id="apiKeyText">poly_live_9f83c1e847a21</span>
+          <button onclick="copyKey()" class="text-slate-400 hover:text-white transition p-1" title="Copy Key">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed mb-4">
+          Authenticate your CLI with: <code class="text-indigo-300 bg-slate-900 px-1 py-0.5 rounded">npx polyglot auth login</code>
+        </p>
+        <button onclick="regenerateKey()" class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate text-[10px]"></i>
+          <span>Regenerate License Key</span>
+        </button>
+      </div>
+
+      <!-- Card 3: Monthly Scan Quota -->
+      <div class="bg-[#111726] border border-slate-800/80 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Monthly Usage</span>
+          <span class="text-xs text-slate-400 font-mono">18 / 100</span>
+        </div>
+        <div class="text-2xl font-bold text-white mb-2">18 Scans Used</div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-3">
+          <div class="bg-gradient-to-r from-indigo-500 to-sky-400 h-full rounded-full" style="width: 18%"></div>
+        </div>
+        <p class="text-[11px] text-slate-400">Resets in 17 days. Unlimited local offline scans available on Pro.</p>
+      </div>
+
+    </div>
+
+    <!-- Pricing Section -->
+    <div id="pricingSection" class="pt-6">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <h2 class="text-3xl font-extrabold tracking-tight text-white mb-3">Simple, Transparent Subscription Plans</h2>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          Free during our developer beta trial. Upgrade when you need closed-loop automated in-place repairs, multi-length AI translation candidates, and CI/CD pipelines.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Tier 1: Free Beta -->
+        <div class="bg-[#111726]/80 border border-slate-800 rounded-3xl p-8 flex flex-col justify-between hover:border-slate-700 transition">
+          <div>
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Community Beta</div>
+            <div class="text-3xl font-extrabold text-white mb-1">₹0 <span class="text-sm font-normal text-slate-400">/ forever</span></div>
+            <p class="text-xs text-slate-400 mt-2 mb-6">Perfect for trying out Polyglot on your personal portfolio and testing local layouts.</p>
+            <ul class="space-y-3 text-xs text-slate-300 border-t border-slate-800/80 pt-6">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> 100 Scans / month</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> 100% Local DOM layout audit</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> German, Arabic, Telugu, Japanese</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Candidate .patch file generation</li>
+              <li class="flex items-center gap-2.5 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-xs"></i> Automatic in-place repair (--apply)</li>
+              <li class="flex items-center gap-2.5 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-xs"></i> GitHub Actions CI gate</li>
+            </ul>
+          </div>
+          <button class="w-full mt-8 text-xs font-semibold py-3 px-4 rounded-xl bg-slate-800 text-slate-300 cursor-default">
+            Current Plan
+          </button>
+        </div>
+
+        <!-- Tier 2: Pro (Featured) -->
+        <div class="bg-gradient-to-b from-[#182035] to-[#111726] border-2 border-indigo-500 rounded-3xl p-8 flex flex-col justify-between shadow-2xl shadow-indigo-500/10 relative">
+          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-sky-500 text-white text-[11px] font-bold py-1 px-3.5 rounded-full shadow-md uppercase tracking-wider">
+            Most Popular
+          </div>
+          <div>
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">Pro Developer</div>
+            <div class="text-3xl font-extrabold text-white mb-1">₹1,499 <span class="text-sm font-normal text-slate-400">/ month ($19)</span></div>
+            <p class="text-xs text-slate-400 mt-2 mb-6">For frontend engineers building production SaaS who need automated source code repair.</p>
+            <ul class="space-y-3 text-xs text-slate-300 border-t border-slate-800/80 pt-6">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Unlimited</strong> Local Audits</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Closed-Loop In-Place Repair (--apply)</strong></li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>Browser Reload Verification</strong></li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Multi-Length AI candidate generation</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Cross-Locale Regression Gate</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Priority Support</li>
+            </ul>
+          </div>
+          <button onclick="startCheckout('growth', 1499)" class="w-full mt-8 text-xs font-bold py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 hover:brightness-110 text-white shadow-lg shadow-indigo-500/25 transition">
+            Subscribe with Razorpay
+          </button>
+        </div>
+
+        <!-- Tier 3: Team / Agency -->
+        <div class="bg-[#111726]/80 border border-slate-800 rounded-3xl p-8 flex flex-col justify-between hover:border-slate-700 transition">
+          <div>
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Team & Enterprise</div>
+            <div class="text-3xl font-extrabold text-white mb-1">₹3,999 <span class="text-sm font-normal text-slate-400">/ month ($49)</span></div>
+            <p class="text-xs text-slate-400 mt-2 mb-6">For engineering teams managing continuous deployment across multilingual apps.</p>
+            <ul class="space-y-3 text-xs text-slate-300 border-t border-slate-800/80 pt-6">
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Everything in Pro, plus:</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> <strong>GitHub Action CI Integration</strong></li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Up to 10 team seats</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Shared Custom Translation Glossary</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Automated Pull Request Comments</li>
+              <li class="flex items-center gap-2.5"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Dedicated Slack channel</li>
+            </ul>
+          </div>
+          <button onclick="startCheckout('enterprise', 3999)" class="w-full mt-8 text-xs font-semibold py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+            Subscribe with Razorpay
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function copyKey() {
+      const key = document.getElementById('apiKeyText').innerText;
+      navigator.clipboard.writeText(key);
+      alert('License key copied to clipboard!');
+    }
+
+    function scrollToPlans() {
+      document.getElementById('pricingSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function regenerateKey() {
+      if (confirm('Are you sure you want to regenerate your CLI license key? Any existing CI scripts will need updating.')) {
+        const newKey = 'poly_live_' + Math.random().toString(36).substring(2, 15);
+        document.getElementById('apiKeyText').innerText = newKey;
+        alert('New license key issued: ' + newKey);
+      }
+    }
+
+    function startCheckout(planId, amountInr) {
+      // Razorpay Checkout Integration
+      const options = {
+        key: "rzp_test_placeholder",
+        amount: amountInr * 100,
+        currency: "INR",
+        name: "Polyglot Engine",
+        description: planId === 'growth' ? "Pro Developer Subscription" : "Team Subscription",
+        image: "https://via.placeholder.com/128?text=P",
+        handler: function (response) {
+          alert('Payment Successful! Payment ID: ' + response.razorpay_payment_id + '\nYour Pro license is now active.');
+        },
+        prefill: {
+          name: "Developer",
+          email: "developer@indicat.co.in"
+        },
+        theme: {
+          color: "#4f46e5"
+        }
+      };
+      
+      // If Razorpay SDK is loaded
+      if (window.Razorpay) {
+        const rzp = new Razorpay(options);
+        rzp.open();
+      } else {
+        alert("Initializing payment for ₹" + amountInr + "...");
+      }
+    }
+  </script>
+</body>
+</html>
